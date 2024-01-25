@@ -27,7 +27,7 @@ ENABLE_PROXY_FIX = True
 from flask import Flask
 from flask_appbuilder.security.manager import AUTH_OID
 
-from custom.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
+from superset_oidc.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
 AUTH_TYPE = AUTH_OID
 CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
 CUSTOM_AUTH_USER_REGISTRATION_ROLE = "Public" # Role de base par défaut synchronisé lors du login

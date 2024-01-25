@@ -1,14 +1,12 @@
 FROM apache/superset:3.1.0
 
 USER root
+RUN apt update && apt install -y git
 
 RUN pip install psycopg[c,pool]
 
 # Dependencies for oidc module
-RUN pip install Authlib
-RUN pip install flask_openid==1.3.0
-RUN pip install flask-oidc==1.3.0
-RUN pip install itsdangerous==2.0.1
+RUN pip install git+https://github.com/dataregion/superset-oidc.git
 
 # Local configuration for the examples
 COPY ./superset_config.py /app/pythonpath/superset_config.py

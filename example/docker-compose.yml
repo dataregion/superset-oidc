@@ -52,21 +52,15 @@ services:
   superset_db:
     build: ./build/superset
     command: superset db upgrade
-    volumes:
-      - ../custom:/app/pythonpath/custom
   
   # supserset - initialization of roles and permission
   superset_init:
     build: ./build/superset
     command: superset init
-    volumes:
-      - ../custom:/app/pythonpath/custom
   
   # superset application itself
   superset:
     build: ./build/superset
-    volumes:
-      - ../custom:/app/pythonpath/custom
     ports:
       - 8088:8088
     extra_hosts:

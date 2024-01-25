@@ -1,0 +1,16 @@
+.gitignore
+README.md
+pyproject.toml
+example/configuration_client_superset.png
+example/docker-compose.yml
+example/build/superset/Dockerfile
+example/build/superset/client_secret.json
+example/build/superset/superset_config.py
+src/superset_oidc/__init__.py
+src/superset_oidc/pyjwt.py
+src/superset_oidc/sm.py
+src/superset_oidc.egg-info/PKG-INFO
+src/superset_oidc.egg-info/SOURCES.txt
+src/superset_oidc.egg-info/dependency_links.txt
+src/superset_oidc.egg-info/requires.txt
+src/superset_oidc.egg-info/top_level.txt

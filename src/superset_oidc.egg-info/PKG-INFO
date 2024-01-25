@@ -1,14 +1,38 @@
+Metadata-Version: 2.1
+Name: superset-oidc
+Version: 1.0.1.dev0+gfa60332.d20240125
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: Authlib
+Requires-Dist: flask_openid==1.3.0
+Requires-Dist: flask-oidc==1.3.0
+Requires-Dist: itsdangerous==2.0.1
+
 # superset-oidc
 
 Module to use oidc as part of superset authentication.
 
-Superset must be configured to use the module. 
+|                      |                            |
+| -------------------- | -------------------------- |
+| source of the module | [custom folder](./custom/) |
+| a working example    | [example](./example/)      |
 
-A working example is located [here](./example/).
+Superset must be configured to use the module. 
 
 An example of configuration is located to [superset_config.py](./example/build/superset/superset_config.py).
 
-Also, don't forget to include [client_secret.json](./example/build/superset/client_secret.json).
+Also, don't forget to include [client_secret.json](./example/build/superset/client_secret.json)
+
+## Additionnal dependencies
+
+The module relies on these dependencies. it is a reminder of the recipie located in [Dockerfile](./example/build/superset/Dockerfile)
+
+```
+pip install Authlib
+pip install flask_openid==1.3.0
+pip install flask-oidc==1.3.0
+pip install itsdangerous==2.0.1
+```
 
 ## Running example
 

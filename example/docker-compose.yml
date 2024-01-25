@@ -1,0 +1,73 @@
+version: "3.9"
+
+configs:
+  config_superset.v1:
+    file: ./config/superset_config.py
+  config_superset_client_secret.v1:
+    file: ./config/client_secret.json
+
+volumes:
+  db_data_2:
+  kc_db_data_2:
+
+services:
+  # DATABASES
+  db:
+    image: postgres:16.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: passwd
+      POSTGRES_DB: superset
+    volumes:
+      - db_data_2:/var/lib/postgresql/data
+  kc_db:
+    image: postgres:16.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: passwd
+      POSTGRES_DB: keycloak
+    volumes:
+      - kc_db_data_2:/var/lib/postgresql/data
+  
+  # KEYCLOAK, as an oidc provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.4
+    command: start-dev
+    ports:
+      - 8080:8080
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: kc_db
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: passwd
+      KC_DB_SCHEMA: public
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+  # superset - initialization of the db
+  superset_db:
+    build: ./build/superset
+    command: superset db upgrade
+    volumes:
+      - ../custom:/app/pythonpath/custom
+  
+  # supserset - initialization of roles and permission
+  superset_init:
+    build: ./build/superset
+    command: superset init
+    volumes:
+      - ../custom:/app/pythonpath/custom
+  
+  # superset application itself
+  superset:
+    build: ./build/superset
+    volumes:
+      - ../custom:/app/pythonpath/custom
+    ports:
+      - 8088:8088
+    extra_hosts:
+      - "keycloak.localhost:host-gateway"

@@ -10,6 +10,24 @@ An example of configuration is located to [superset_config.py](./example/build/s
 
 Also, don't forget to include [client_secret.json](./example/build/superset/client_secret.json).
 
+## Configuration keys
+
+| key                                | type                   | description                                 |
+| ---------------------------------- | ---------------------- | ------------------------------------------- |
+| CUSTOM_AUTH_USER_REGISTRATION_ROLE | `string` (a role name) | Default role attributed to a superset user. |
+
+## Limitations
+
+Here are the limitation and the impacts on the superset instance.
+
+- Role affectation in superset is obselete with this module.
+
+## How roles are managed
+
+The roles provided by the OIDC provider is the source of truth. We overwrite role affectation in superset with the JWT `roles` claim.
+
+Roles must exist in superset to be assigned (mapping is *case insensitive*) and a default role (`CUSTOM_AUTH_USER_REGISTRATION_ROLE`) is always set.
+
 ## Running example
 
 - With docker, run the [docker-compose.yml](./example/docker-compose.yml)

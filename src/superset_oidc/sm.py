@@ -152,7 +152,7 @@ class AuthOIDCView(AuthOIDView):
 def oidc_check_loggedin_or_logout():
     """
     Vérifie que l'utilisateur est loggé via le module OIDC
-    Si ce n'est pas le cas, deconnexion de la session courante
+    Si ce n'est pas le cas, deconnexion de la session courante à moins que ce ne soit un guest token.
 
     Conçu pour être utilisé avec @app.before_request
     """
@@ -161,6 +161,11 @@ def oidc_check_loggedin_or_logout():
     sm: OIDCSecurityManager = sm
 
     if oidc is None:
+        return
+
+    current_user_is_guest = current_user.is_guest_user if hasattr(current_user, "is_guest_user") else False
+
+    if current_user_is_guest:
         return
     
     curr_sid = session[OIDC_SID_KEY] if OIDC_SID_KEY in session else None

@@ -53,8 +53,13 @@ class AuthOIDCView(AuthOIDView):
         def handle_login():
             user = sm.auth_user_oid(oidc.user_getfield('email'))
 
-            _username, _firstname, _lastname, _email, _sid = \
-                oidc.user_getinfo(['preferred_username', 'given_name', 'family_name', 'email', 'sid']).values()
+            _oidc_auth_profile = session['oidc_auth_profile']
+
+            _username = _oidc_auth_profile.get( 'preferred_username', None )
+            _firstname = _oidc_auth_profile.get( 'given_name', None )
+            _lastname = _oidc_auth_profile.get( 'family_name', None )
+            _email = _oidc_auth_profile.get( 'email' , None)
+            _sid = _oidc_auth_profile.get( 'sid' , None)
 
             if user is None:
                 user = sm.add_user(_username, _firstname, _lastname, _email, [])
@@ -85,7 +90,7 @@ class AuthOIDCView(AuthOIDView):
     @expose('/sso-logout/', methods=['GET', 'POST'])
     def sso_logout(self):
         """Back channel logout. Flag la session à être déconnectée par sa session id oidc"""
-        logger.debug(f"SSO logout a été appelé")
+        logger.debug("SSO logout a été appelé")
         sm: OIDCSecurityManager = self.appbuilder.sm
         oidc = sm.oid
         clientid = oidc.client_secrets['client_id']

@@ -35,11 +35,9 @@ CUSTOM_AUTH_USER_REGISTRATION_ROLE = "Public" # Role de base par défaut synchro
 ## Configuration du module flask-oidc. part of superset oidc ########################
 OIDC_CLIENT_SECRETS =  '/app/pythonpath/client_secret.json'
 OIDC_ID_TOKEN_COOKIE_SECURE = False
-OIDC_REQUIRE_VERIFIED_EMAIL = False
 OIDC_OPENID_REALM: "master"
 OIDC_INTROSPECTION_AUTH_METHOD: "client_secret_post"
 AUTH_USER_REGISTRATION = True
-OIDC_VALID_ISSUERS = [ "http://keycloak.localhost:8080/realms/master" ]
 
 #####################################
 # ADDITIONAL_MIDDLEWARE = [AuthMiddleware, ]

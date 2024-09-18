@@ -10,6 +10,8 @@ An example of configuration is located to [superset_config.py](./example/build/s
 
 Also, don't forget to include [client_secret.json](./example/build/superset/client_secret.json).
 
+*Only tested with superset 4*
+
 ## Configuration keys
 
 | key                                | type                   | description                                 |

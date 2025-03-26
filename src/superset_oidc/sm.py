@@ -72,7 +72,12 @@ class AuthOIDCView(AuthOIDView):
 
             login_user(user, remember=False, force=True)
             session[OIDC_SID_KEY] = _sid
+            
+            next = request.args.get('next') or None
+            if next:
+                return redirect(next)
             return redirect(self.appbuilder.get_url_for_index)
+
 
         return handle_login()
 

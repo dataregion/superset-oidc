@@ -31,6 +31,7 @@ from superset_oidc.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
 AUTH_TYPE = AUTH_OID
 CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
 CUSTOM_AUTH_USER_REGISTRATION_ROLE = "Public" # Role de base par défaut synchronisé lors du login
+CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" # "overwrite" (défaut) ou "merge" pour conserver les rôles déjà présents
 
 ## Configuration du module flask-oidc. part of superset oidc ########################
 OIDC_CLIENT_SECRETS =  '/app/pythonpath/client_secret.json'

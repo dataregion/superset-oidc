@@ -133,7 +133,11 @@ class AuthOIDCView(AuthOIDView):
     def _attach_roles_for(self, user, default_roles: list[str] = None):
         """
         Attache les roles fournis dans le token d'authentification à l'utilisateur superset local.
-        Applique automatiquement les roles par défaut
+        Applique automatiquement les roles par défaut.
+
+        Le mode d'application est contrôlé par la configuration:
+        - CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" (défaut): remplace les rôles existants.
+        - CUSTOM_AUTH_ROLES_SYNC_MODE = "merge": conserve les rôles existants et ajoute ceux synchronisés.
         """
         sm = self.appbuilder.sm
         oidc = self.appbuilder.sm.oid
@@ -151,8 +155,24 @@ class AuthOIDCView(AuthOIDView):
         roles_to_apply = [role for role in all_roles
                  if role.name.upper() in token_roles_upper]
 
-        logger.debug(f"Application des roles {roles_to_apply} à {user}")
-        user.roles = roles_to_apply
+        sync_mode = str(current_app.config.get("CUSTOM_AUTH_ROLES_SYNC_MODE", "overwrite")).lower()
+        if sync_mode not in {"overwrite", "merge"}:
+            logger.warning(
+                f"Valeur invalide pour CUSTOM_AUTH_ROLES_SYNC_MODE={sync_mode}, fallback sur 'overwrite'."
+            )
+            sync_mode = "overwrite"
+
+        if sync_mode == "merge":
+            existing_roles = list(user.roles) if user.roles else []
+            merged_roles = {role.name.upper(): role for role in existing_roles}
+            for role in roles_to_apply:
+                merged_roles.setdefault(role.name.upper(), role)
+            applied_roles = list(merged_roles.values())
+        else:
+            applied_roles = roles_to_apply
+
+        logger.debug(f"Application des roles {applied_roles} à {user} (mode={sync_mode})")
+        user.roles = applied_roles
 
 def oidc_check_loggedin_or_logout():
     """

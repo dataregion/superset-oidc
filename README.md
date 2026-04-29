@@ -17,18 +17,24 @@ Also, don't forget to include [client_secret.json](./example/build/superset/clie
 | key                                | type                   | description                                 |
 | ---------------------------------- | ---------------------- | ------------------------------------------- |
 | CUSTOM_AUTH_USER_REGISTRATION_ROLE | `string` (a role name) | Default role attributed to a superset user. |
+| CUSTOM_AUTH_ROLES_SYNC_MODE        | `string`               | Role sync mode: `overwrite` (default) or `merge`. |
 
 ## Limitations
 
 Here are the limitation and the impacts on the superset instance.
 
-- Role affectation in superset is obselete with this module.
+- Role affectation in superset is obselete with this module. (when `overwrite` mode is enabled on the `CUSTOM_AUTH_ROLES_SYNC_MODE` configuration key)
 
 ## How roles are managed
 
 The roles provided by the OIDC provider is the source of truth. We overwrite role affectation in superset with the JWT `roles` claim.
 
 Roles must exist in superset to be assigned (mapping is *case insensitive*) and a default role (`CUSTOM_AUTH_USER_REGISTRATION_ROLE`) is always set.
+
+You can change this behavior with `CUSTOM_AUTH_ROLES_SYNC_MODE`:
+
+- `overwrite` (default): replace user roles in superset with synchronized roles.
+- `merge`: keep existing superset roles and add synchronized roles.
 
 ## Running example
 

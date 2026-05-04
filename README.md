@@ -10,7 +10,7 @@ An example of configuration is located to [superset_config.py](./example/build/s
 
 Also, don't forget to include [client_secret.json](./example/build/superset/client_secret.json).
 
-*Only tested with superset 4*
+*Only tested with superset 5*
 
 ## Configuration keys
 
@@ -27,14 +27,17 @@ Here are the limitation and the impacts on the superset instance.
 
 ## How roles are managed
 
-The roles provided by the OIDC provider is the source of truth. We overwrite role affectation in superset with the JWT `roles` claim.
-
 Roles must exist in superset to be assigned (mapping is *case insensitive*) and a default role (`CUSTOM_AUTH_USER_REGISTRATION_ROLE`) is always set.
 
-You can change this behavior with `CUSTOM_AUTH_ROLES_SYNC_MODE`:
+### `overwrite` mode
 
-- `overwrite` (default): replace user roles in superset with synchronized roles.
-- `merge`: keep existing superset roles and add synchronized roles.
+When `overwrite` mode is enabled (default), user roles in superset are replaced with synchronized roles. This means that any existing roles assigned to the user in superset will be removed and replaced with the roles synchronized from the OIDC provider.
+
+### `merge` mode
+
+When `merge` mode is enabled, existing superset roles assigned to the user are kept, and synchronized roles from the OIDC provider are added to the user's role list. This allows for a combination of roles from both sources without removing any existing roles in superset.`
+
+Note that this mode keep tracks of oidc synchronized roles by using a custom table named `superset_oidc_user_data`. This allow handling role deletion.
 
 ## Running example
 

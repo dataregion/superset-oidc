@@ -32,7 +32,7 @@ def _fetch_users_with_roles(conn, ab_user, ab_role, ab_user_role) -> dict[int, d
     return users
 
 
-@click.command('migrate-user-data')
+@click.command('superset-oidc-sync-db-oidc-roles')
 @click.option(
     '--db-uri', envvar='SQLALCHEMY_DATABASE_URI', required=True,
     help='URI SQLAlchemy de la base Superset. Peut aussi être fourni via $SQLALCHEMY_DATABASE_URI.',

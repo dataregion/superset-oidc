@@ -77,11 +77,10 @@ class AuthOIDCView(AuthOIDView):
             _lastname = _oidc_auth_profile.get( 'family_name', None )
             _email = _oidc_auth_profile.get( 'email' , None)
             _sid = _oidc_auth_profile.get('sid')
-            if _sid is None:
-                raise ValueError(
+            if not _sid:
+                logger.warning(
                     "The OIDC token does not contain a 'sid' claim. "
-                    "Back-channel logout requires session ID tracking — "
-                    "check your OIDC provider configuration."
+                    "Back-channel logout will not work for this session."
                 )
 
             if user is None:
@@ -94,7 +93,8 @@ class AuthOIDCView(AuthOIDView):
             sm.update_user(user)
 
             login_user(user, remember=False, force=True)
-            session[OIDC_SID_KEY] = _sid
+            if _sid:
+                session[OIDC_SID_KEY] = _sid
             
             next = request.args.get('next') or None
             if next:
@@ -142,8 +142,11 @@ class AuthOIDCView(AuthOIDView):
             logger.exception(msg, exc_info=e)
             return msg, 400
 
-        logout_sid = payload['sid']
-
+        logout_sid = payload.get('sid')
+        if not logout_sid:
+            msg = "Logout token does not contain a 'sid' claim"
+            logger.warning(msg)
+            return msg, 400
 
         sm.push_sid_to_disconnect(logout_sid)
         msg = f"On flag la session {logout_sid} pour deconnexion"

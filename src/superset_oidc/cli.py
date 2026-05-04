@@ -35,25 +35,25 @@ def _fetch_users_with_roles(conn, ab_user, ab_role, ab_user_role) -> dict[int, d
 @click.command('superset-oidc-sync-db-oidc-roles')
 @click.option(
     '--db-uri', envvar='SQLALCHEMY_DATABASE_URI', required=True,
-    help='URI SQLAlchemy de la base Superset. Peut aussi être fourni via $SQLALCHEMY_DATABASE_URI.',
+    help='SQLAlchemy URI of the Superset database. Can also be set via $SQLALCHEMY_DATABASE_URI.',
 )
-@click.option('--dry-run', is_flag=True, help='Affiche ce qui serait fait sans écrire en base.')
-@click.option('--yes', '-y', is_flag=True, help='Ignore la confirmation interactive.')
+@click.option('--dry-run', is_flag=True, help='Print what would be done without writing to the database.')
+@click.option('--yes', '-y', is_flag=True, help='Skip interactive confirmation.')
 @click.option(
     '--overwrite', is_flag=True,
-    help='Met à jour les entrées existantes dans superset_oidc_plugin__userdata.',
+    help='Update existing entries in superset_oidc_plugin__userdata.',
 )
 def migrate(db_uri: str, dry_run: bool, yes: bool, overwrite: bool):
-    """Peuple superset_oidc_plugin__userdata à partir des rôles actuels de chaque utilisateur Superset.
+    """Populate superset_oidc_plugin__userdata from the current roles of each Superset user.
 
-    Chaque rôle existant est traité comme un rôle assigné par OIDC. À utiliser lors de la
-    migration d'une instance Superset existante vers le mode 'merge' de superset-oidc.
+    Every existing role is treated as an OIDC-assigned role. Use this when migrating an
+    existing Superset instance to the 'merge' mode of superset-oidc.
 
     \b
-    AVERTISSEMENT : ce script est destiné aux utilisateurs avancés.
-    Une mauvaise utilisation peut corrompre la table de suivi des rôles OIDC et entraîner
-    des attributions ou suppressions de rôles inattendues lors des prochaines connexions.
-    Utilisez --dry-run pour vérifier l'effet avant toute écriture en base.
+    WARNING: this script is intended for advanced users.
+    Incorrect usage can corrupt the OIDC role tracking table and cause unexpected role
+    assignments or removals on subsequent logins.
+    Use --dry-run to preview the effect before writing to the database.
     """
     engine = create_engine(db_uri)
 
@@ -63,8 +63,8 @@ def migrate(db_uri: str, dry_run: bool, yes: bool, overwrite: bool):
     ab_role = fab_meta.tables['ab_role']
     ab_user_role = fab_meta.tables['ab_user_role']
 
-    # La table oidc est définie dans le même MetaData que les tables FAB
-    # afin que SQLAlchemy puisse résoudre la FK vers ab_user à la création.
+    # The OIDC table is defined in the same MetaData as the FAB tables
+    # so that SQLAlchemy can resolve the FK to ab_user at creation time.
     oidc_table = _build_oidc_table(fab_meta)
 
     insp = sa_inspect(engine)
@@ -78,13 +78,13 @@ def migrate(db_uri: str, dry_run: bool, yes: bool, overwrite: bool):
             existing_ids = {row[0] for row in conn.execute(select(oidc_table.c.user_id))}
 
     if not users:
-        click.echo("Aucun utilisateur trouvé.")
+        click.echo("No users found.")
         return
 
     if not table_exists:
-        click.echo(f"La table {_OIDC_TABLE} sera créée.")
+        click.echo(f"Table {_OIDC_TABLE} will be created.")
 
-    click.echo(f"\n{len(users)} utilisateur(s) à traiter :\n")
+    click.echo(f"\n{len(users)} user(s) to process:\n")
     for user_id, data in users.items():
         if user_id in existing_ids:
             status = "UPDATE" if overwrite else "SKIP  "
@@ -93,15 +93,15 @@ def migrate(db_uri: str, dry_run: bool, yes: bool, overwrite: bool):
         click.echo(f"  [{status}] {data['username']:<30} {data['roles']}")
 
     if dry_run:
-        click.echo("\n[dry-run] Aucune modification effectuée.")
+        click.echo("\n[dry-run] No changes made.")
         return
 
     if not yes:
-        click.confirm("\nProcéder à la migration ?", abort=True)
+        click.confirm("\nProceed with migration?", abort=True)
 
     if not table_exists:
         oidc_table.create(engine)
-        click.echo(f"Table {_OIDC_TABLE} créée.")
+        click.echo(f"Table {_OIDC_TABLE} created.")
 
     inserted = updated = skipped = 0
     with engine.begin() as conn:
@@ -123,4 +123,4 @@ def migrate(db_uri: str, dry_run: bool, yes: bool, overwrite: bool):
                 )
                 inserted += 1
 
-    click.echo(f"\nMigration terminée : {inserted} insérés, {updated} mis à jour, {skipped} ignorés.")
+    click.echo(f"\nMigration complete: {inserted} inserted, {updated} updated, {skipped} skipped.")

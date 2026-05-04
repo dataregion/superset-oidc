@@ -22,17 +22,17 @@ class OIDCSecurityManager(SupersetSecurityManager):
 
     def __init__(self, appbuilder):
         super(OIDCSecurityManager, self).__init__(appbuilder)
-        logger.info(f"Mise en place de notre security manager custom nommé OIDCSecurityManager")
+        logger.info("Setting up custom security manager OIDCSecurityManager")
         if self.auth_type == AUTH_OID:
             self.oid = OpenIDConnect(self.appbuilder.get_app)
         else:
-            logger.error(f"Veuillez mettre le configuration AUTH_TYPE = AUTH_OID dans superset_config.py")
+            logger.error("Please set AUTH_TYPE = AUTH_OID in superset_config.py")
         self.authoidview = AuthOIDCView
 
         self.jwkclient = FilteredPyJWKClient(self.oid.client_secrets['jwks_uri'])
 
         self.sid_to_disconnect = []
-        """List de session id à deconnecter."""
+        """List of session IDs pending disconnection."""
 
         self._provider_config: dict | None = None
 
@@ -80,14 +80,14 @@ class AuthOIDCView(AuthOIDView):
             if not _sid:
                 logger.warning(
                     "The OIDC token does not contain a 'sid' claim. "
-                    "Back-channel logout will not work for this session."
+                    "Back-channel logout may not work for this session."
                 )
 
             if user is None:
                 user = sm.add_user(_username, _firstname, _lastname, _email, [])
-                logger.info(f"Création de l'utilisateur {_username} dans superset")
+                logger.info(f"User {_username} created in Superset")
 
-            logger.info(f"Application des roles à l'utilisateur {user.username}")
+            logger.info(f"Applying roles to user {user.username}")
             default_role = current_app.config.get("CUSTOM_AUTH_USER_REGISTRATION_ROLE", "Public")
             self._attach_roles_for(user, default_roles=[default_role])
             sm.update_user(user)
@@ -123,7 +123,7 @@ class AuthOIDCView(AuthOIDView):
     
     @expose('/sso-logout/', methods=['GET', 'POST'])
     def sso_logout(self):
-        """Back channel logout. Flag la session à être déconnectée par sa session id oidc"""
+        """Back-channel logout endpoint. Marks the OIDC session for disconnection by its session ID."""
         logger.debug("SSO logout a été appelé")
         sm: OIDCSecurityManager = self.appbuilder.sm
         oidc = sm.oid
@@ -134,11 +134,11 @@ class AuthOIDCView(AuthOIDView):
         try:
             payload = self._decode_logout_jwt(logout_jwt, clientid)
         except jwt.ExpiredSignatureError as e:
-            msg = f"Le jeton de deconnexion est expiré"
+            msg = "Logout token has expired"
             logger.exception(msg, exc_info=e)
             return msg, 400
         except jwt.DecodeError as e:
-            msg = f"Le jeton de deconnexion est invalide"
+            msg = "Logout token is invalid"
             logger.exception(msg, exc_info=e)
             return msg, 400
 
@@ -149,8 +149,8 @@ class AuthOIDCView(AuthOIDView):
             return msg, 400
 
         sm.push_sid_to_disconnect(logout_sid)
-        msg = f"On flag la session {logout_sid} pour deconnexion"
-        logger.info(f"On flag la session {logout_sid} pour deconnexion")
+        msg = f"Session {logout_sid} flagged for disconnection"
+        logger.info(msg)
         return msg
     
     def _decode_logout_jwt(self, token: str, aud: str) -> dict:
@@ -164,12 +164,12 @@ class AuthOIDCView(AuthOIDView):
     
     def _attach_roles_for(self, user, default_roles: list[str] = None):
         """
-        Attache les roles fournis dans le token d'authentification à l'utilisateur superset local.
-        Applique automatiquement les roles par défaut.
+        Attaches roles from the authentication token to the local Superset user.
+        Default roles are always applied.
 
-        Le mode d'application est contrôlé par la configuration:
-        - CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" (défaut): remplace les rôles existants.
-        - CUSTOM_AUTH_ROLES_SYNC_MODE = "merge": synchronise les rôles OIDC (ajout/suppression) et conserve les rôles assignés manuellement.
+        The sync mode is controlled by configuration:
+        - CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" (default): replaces existing roles entirely.
+        - CUSTOM_AUTH_ROLES_SYNC_MODE = "merge": syncs OIDC roles (add/remove) while keeping manually assigned roles.
         """
         sm = self.appbuilder.sm
         oidc = self.appbuilder.sm.oid
@@ -190,7 +190,7 @@ class AuthOIDCView(AuthOIDView):
         sync_mode = str(current_app.config.get("CUSTOM_AUTH_ROLES_SYNC_MODE", "overwrite")).lower()
         if sync_mode not in {"overwrite", "merge"}:
             logger.warning(
-                f"Valeur invalide pour CUSTOM_AUTH_ROLES_SYNC_MODE={sync_mode}, fallback sur 'overwrite'."
+                f"Invalid value for CUSTOM_AUTH_ROLES_SYNC_MODE={sync_mode}, falling back to 'overwrite'."
             )
             sync_mode = "overwrite"
 
@@ -199,8 +199,8 @@ class AuthOIDCView(AuthOIDView):
         if sync_mode == "merge":
             prev_oidc_roles_upper = get_previous_oidc_role_names(db_session, user.id)
             existing_roles = list(user.roles) if user.roles else []
-            # Garde uniquement les rôles qui n'avaient pas été assignés par OIDC au dernier login
-            # (= rôles assignés manuellement), puis ajoute les rôles du token courant
+            # Keep only roles that were not assigned by OIDC at the last login
+            # (i.e. manually assigned roles), then add the roles from the current token.
             merged_roles = {r.name.upper(): r for r in existing_roles if r.name.upper() not in prev_oidc_roles_upper}
             for role in oidc_roles:
                 merged_roles[role.name.upper()] = role
@@ -210,15 +210,15 @@ class AuthOIDCView(AuthOIDView):
 
         save_oidc_roles(db_session, user.id, oidc_roles)
 
-        logger.debug(f"Application des roles {applied_roles} à {user} (mode={sync_mode})")
+        logger.debug(f"Applying roles {applied_roles} to {user} (mode={sync_mode})")
         user.roles = applied_roles
 
 def oidc_check_loggedin_or_logout():
     """
-    Vérifie que l'utilisateur est loggé via le module OIDC
-    Si ce n'est pas le cas, deconnexion de la session courante à moins que ce ne soit un guest token.
+    Checks that the current user is still logged in via OIDC.
+    If not, the local session is terminated unless the request carries a guest token.
 
-    Conçu pour être utilisé avec @app.before_request
+    Designed to be used with @app.before_request.
     """
     from superset import security_manager as sm
     oidc = sm.oid if sm else None
@@ -237,7 +237,7 @@ def oidc_check_loggedin_or_logout():
 
     if not oidc.user_loggedin or curr_to_disconnect:
         if current_user.is_authenticated:
-            logger.warning(f"Utilisateur {current_user} déconnecté de keycloak. On deconnecte la session.")
+            logger.warning(f"User {current_user} is no longer logged in to the OIDC provider. Terminating local session.")
             oidc.logout()
             logout_user()
 

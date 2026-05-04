@@ -110,11 +110,11 @@ class AuthOIDCView(AuthOIDView):
         except jwt.ExpiredSignatureError as e:
             msg = f"Le jeton de deconnexion est expiré"
             logger.exception(msg, exc_info=e)
-            return 400, msg
+            return msg, 400
         except jwt.DecodeError as e:
             msg = f"Le jeton de deconnexion est invalide"
             logger.exception(msg, exc_info=e)
-            return 400, msg
+            return msg, 400
 
         logout_sid = payload['sid']
 

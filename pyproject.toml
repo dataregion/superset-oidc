@@ -16,7 +16,7 @@ dependencies = [
 cli = [
     "click>=8.0",
     "sqlalchemy>=1.4",
-    "psycopg2", "psycopg2-binary",
+    "psycopg2-binary",
 ]
 
 [project.scripts]

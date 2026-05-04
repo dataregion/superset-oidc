@@ -76,11 +76,18 @@ class AuthOIDCView(AuthOIDView):
             _firstname = _oidc_auth_profile.get( 'given_name', None )
             _lastname = _oidc_auth_profile.get( 'family_name', None )
             _email = _oidc_auth_profile.get( 'email' , None)
-            _sid = _oidc_auth_profile.get('sid')
+
+            # sid is a session-level claim absent from the userinfo endpoint.
+            # Read it from the ID token; fall back to session_state (Keycloak legacy name).
+            _id_token_str = session.get('oidc_auth_token', {}).get('id_token')
+            _sid = None
+            if _id_token_str:
+                _id_token_claims = jwt.decode(_id_token_str, options={"verify_signature": False})
+                _sid = _id_token_claims.get('sid') or _id_token_claims.get('session_state')
             if not _sid:
                 logger.warning(
-                    "The OIDC token does not contain a 'sid' claim. "
-                    "Back-channel logout may not work for this session."
+                    "Could not find 'sid' or 'session_state' in the ID token. "
+                    "Back-channel logout will not work for this session."
                 )
 
             if user is None:

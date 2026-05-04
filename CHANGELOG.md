@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-05-04
+
+### Fixed
+- Back-channel logout session tracking now reads `sid` from the ID token instead of the
+  userinfo endpoint. The userinfo endpoint does not include session-level claims; the ID
+  token is the correct source. Keycloak's legacy `session_state` claim is used as a
+  fallback so that back-channel logout works on all Keycloak versions.
+
 ## [1.3.0] - 2026-05-04
 
 ### Added
@@ -53,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Back-channel (SSO) logout support.
 - Configurable default role via `CUSTOM_AUTH_USER_REGISTRATION_ROLE`.
 
-[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/dataregion/superset-oidc/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/dataregion/superset-oidc/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/dataregion/superset-oidc/compare/1.2.1...1.2.2
 [1.2.1]: https://github.com/dataregion/superset-oidc/compare/1.2.0...1.2.1

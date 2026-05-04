@@ -35,7 +35,7 @@ When `overwrite` mode is enabled (default), user roles in superset are replaced 
 
 ### `merge` mode
 
-When `merge` mode is enabled, existing superset roles assigned to the user are kept, and synchronized roles from the OIDC provider are added to the user's role list. This allows for a combination of roles from both sources without removing any existing roles in superset.`
+When `merge` mode is enabled, OIDC roles are kept in sync (added and removed) while roles assigned manually in Superset are preserved. This means a user can hold both OIDC-managed roles and manually assigned roles simultaneously, and changes made to OIDC roles (including removals) are reflected on the next login without affecting manually assigned ones.
 
 Note that this mode keep tracks of oidc synchronized roles by using a custom table named `superset_oidc_plugin__userdata`. This allow handling role deletion.
 

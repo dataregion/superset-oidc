@@ -124,7 +124,7 @@ class AuthOIDCView(AuthOIDView):
     @expose('/sso-logout/', methods=['GET', 'POST'])
     def sso_logout(self):
         """Back-channel logout endpoint. Marks the OIDC session for disconnection by its session ID."""
-        logger.debug("SSO logout a été appelé")
+        logger.debug("Back-channel logout endpoint called")
         sm: OIDCSecurityManager = self.appbuilder.sm
         oidc = sm.oid
         clientid = oidc.client_secrets['client_id']
@@ -154,7 +154,7 @@ class AuthOIDCView(AuthOIDView):
         return msg
     
     def _decode_logout_jwt(self, token: str, aud: str) -> dict:
-        """ Décode un jeton jwt en vérifiant la signature """
+        """Decodes and verifies the signature of a JWT logout token."""
         sm: OIDCSecurityManager = self.appbuilder.sm
 
         signing_key = sm.jwkclient.get_signing_key_from_jwt(token)

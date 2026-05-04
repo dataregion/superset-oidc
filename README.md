@@ -37,7 +37,35 @@ When `overwrite` mode is enabled (default), user roles in superset are replaced 
 
 When `merge` mode is enabled, existing superset roles assigned to the user are kept, and synchronized roles from the OIDC provider are added to the user's role list. This allows for a combination of roles from both sources without removing any existing roles in superset.`
 
-Note that this mode keep tracks of oidc synchronized roles by using a custom table named `superset_oidc_user_data`. This allow handling role deletion.
+Note that this mode keep tracks of oidc synchronized roles by using a custom table named `superset_oidc_plugin__userdata`. This allow handling role deletion.
+
+## Switching from `overwrite` to `merge` mode
+
+> Available since version **1.3.0**
+
+If your Superset instance was already running with `overwrite` mode and you want to switch to `merge` mode, the `superset_oidc_plugin__userdata` table must be seeded with the current roles of each user. Without this step, `merge` mode would start from an empty history and could not distinguish manually assigned roles from OIDC-assigned ones — potentially causing unexpected role changes on the next login.
+
+The `superset-oidc-sync-db-oidc-roles` script (included in the `cli` extra) handles this:
+
+```bash
+pip install superset-oidc[cli]
+
+# Preview changes without writing to the database
+superset-oidc-sync-db-oidc-roles --db-uri postgresql://user:pass@host/superset --dry-run
+
+# Run the migration
+superset-oidc-sync-db-oidc-roles --db-uri postgresql://user:pass@host/superset
+```
+
+The database URI can also be provided via the `SQLALCHEMY_DATABASE_URI` environment variable.
+
+Once the script has run, update `superset_config.py` to enable merge mode:
+
+```python
+CUSTOM_AUTH_ROLES_SYNC_MODE = "merge"
+```
+
+> **Note:** this script is intended for advanced users. Run with `--help` for the full list of options.
 
 ## Running example
 

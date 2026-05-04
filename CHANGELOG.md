@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `CUSTOM_AUTH_ROLES_SYNC_MODE=merge` mode: existing superset roles are preserved and OIDC roles are merged in, rather than overwriting all roles.
-- `superset_oidc_user_data` table to persist OIDC-assigned roles across sessions, enabling accurate role diffing on subsequent logins in `merge` mode.
+- `superset_oidc_plugin__userdata` table to persist OIDC-assigned roles across sessions, enabling accurate role diffing on subsequent logins in `merge` mode.
 - Dedicated module `oidc_user_data.py` encapsulating the `OIDCUserData` model and its lifecycle (table creation, role persistence, role retrieval).
 
 ### Changed

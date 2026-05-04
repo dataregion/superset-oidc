@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class OIDCUserData(Model):
     """Stocke les métadonnées OIDC par utilisateur (hors modèle User FAB)."""
-    __tablename__ = 'superset_oidc_user_data'
+    __tablename__ = 'superset_oidc_plugin__userdata'
     user_id = Column(Integer, ForeignKey('ab_user.id'), primary_key=True)
     oidc_roles_json = Column(Text, nullable=True)
 
@@ -16,7 +16,7 @@ class OIDCUserData(Model):
 def ensure_table(engine):
     """Crée la table si elle n'existe pas encore."""
     OIDCUserData.__table__.create(bind=engine, checkfirst=True)
-    logger.info("Table superset_oidc_user_data vérifiée/créée.")
+    logger.info("Table superset_oidc_plugin__userdata vérifiée/créée.")
 
 
 def get_previous_oidc_role_names(db_session, user_id: int) -> set[str]:

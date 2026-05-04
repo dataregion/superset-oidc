@@ -8,6 +8,7 @@ from urllib.parse import quote
 from flask_appbuilder.views import expose
 import urllib.parse
 import logging
+import json
 import jwt
 from .pyjwt import FilteredPyJWKClient
 
@@ -137,7 +138,7 @@ class AuthOIDCView(AuthOIDView):
 
         Le mode d'application est contrôlé par la configuration:
         - CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" (défaut): remplace les rôles existants.
-        - CUSTOM_AUTH_ROLES_SYNC_MODE = "merge": conserve les rôles existants et ajoute ceux synchronisés.
+        - CUSTOM_AUTH_ROLES_SYNC_MODE = "merge": synchronise les rôles OIDC (ajout/suppression) et conserve les rôles assignés manuellement.
         """
         sm = self.appbuilder.sm
         oidc = self.appbuilder.sm.oid
@@ -152,7 +153,7 @@ class AuthOIDCView(AuthOIDView):
 
         token_roles_upper = [tr.upper() for tr in token_roles]
         all_roles = sm.get_all_roles()
-        roles_to_apply = [role for role in all_roles
+        oidc_roles = [role for role in all_roles
                  if role.name.upper() in token_roles_upper]
 
         sync_mode = str(current_app.config.get("CUSTOM_AUTH_ROLES_SYNC_MODE", "overwrite")).lower()
@@ -162,14 +163,24 @@ class AuthOIDCView(AuthOIDView):
             )
             sync_mode = "overwrite"
 
+        extra = json.loads(user.extra) if user.extra else {}
+
         if sync_mode == "merge":
+            prev_oidc_roles_upper = {r.upper() for r in extra.get("oidc_roles", [])}
+
             existing_roles = list(user.roles) if user.roles else []
-            merged_roles = {role.name.upper(): role for role in existing_roles}
-            for role in roles_to_apply:
-                merged_roles.setdefault(role.name.upper(), role)
+            # Garde uniquement les rôles qui n'avaient pas été assignés par OIDC au dernier login
+            # (= rôles assignés manuellement), puis ajoute les rôles du token courant
+            merged_roles = {r.name.upper(): r for r in existing_roles if r.name.upper() not in prev_oidc_roles_upper}
+            for role in oidc_roles:
+                merged_roles[role.name.upper()] = role
             applied_roles = list(merged_roles.values())
         else:
-            applied_roles = roles_to_apply
+            applied_roles = oidc_roles
+
+        logger.debug(f"On garde les roles oidc en session. OIDC roles: {oidc_roles}")
+        extra["oidc_roles"] = [r.name for r in oidc_roles]
+        user.extra = json.dumps(extra)
 
         logger.debug(f"Application des roles {applied_roles} à {user} (mode={sync_mode})")
         user.roles = applied_roles

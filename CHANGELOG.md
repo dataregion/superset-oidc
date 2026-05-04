@@ -7,13 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-04
+
 ### Added
 - `CUSTOM_AUTH_ROLES_SYNC_MODE=merge` mode: existing superset roles are preserved and OIDC roles are merged in, rather than overwriting all roles.
 - `superset_oidc_plugin__userdata` table to persist OIDC-assigned roles across sessions, enabling accurate role diffing on subsequent logins in `merge` mode.
 - Dedicated module `oidc_user_data.py` encapsulating the `OIDCUserData` model and its lifecycle (table creation, role persistence, role retrieval).
+- `superset-oidc-sync-db-oidc-roles` CLI command (optional `[cli]` extra) to pre-populate `superset_oidc_plugin__userdata` when migrating an existing instance to `merge` mode.
 
 ### Changed
 - `merge` mode now tracks previously assigned OIDC roles so that roles removed from the OIDC provider are also removed from the superset user, rather than accumulated indefinitely.
+- Logout URL is now resolved from the OIDC provider's discovery document (`end_session_endpoint`) instead of being hardcoded to a Keycloak-specific path. The module now works with any standards-compliant OIDC provider.
+- The `sid` claim is now optional: if the provider does not include it, login succeeds and a warning is logged. Back-channel logout is silently disabled for sessions without a `sid`.
+- CLI `psycopg2` dependency replaced by `psycopg2-binary` only (the two were declared redundantly).
+
+### Fixed
+- HTTP response tuple in `sso_logout` was inverted (`400, msg` instead of `msg, 400`), causing back-channel logout errors to return HTTP 200 instead of 400.
+- SQLAlchemy 2.0 incompatibility: `session.bind` (removed in 2.0) replaced by `db.engine`; `Table.create(bind=engine)` keyword argument replaced by positional form.
+- `None` could be stored as the OIDC session ID in the Flask session when the provider omits the `sid` claim, risking spurious logouts for all anonymous sessions if a back-channel logout arrived with `sid=None`.
 
 ## [1.2.2] - 2025-03-26
 
@@ -42,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Back-channel (SSO) logout support.
 - Configurable default role via `CUSTOM_AUTH_USER_REGISTRATION_ROLE`.
 
-[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.2.2...HEAD
+[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/dataregion/superset-oidc/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/dataregion/superset-oidc/compare/1.2.1...1.2.2
 [1.2.1]: https://github.com/dataregion/superset-oidc/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/dataregion/superset-oidc/compare/1.1.0...1.2.0

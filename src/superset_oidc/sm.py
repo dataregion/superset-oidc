@@ -36,7 +36,8 @@ class OIDCSecurityManager(SupersetSecurityManager):
 
         self._provider_config: dict | None = None
 
-        ensure_table(self.get_session.bind)
+        from superset.extensions import db
+        ensure_table(db.engine)
     
     def push_sid_to_disconnect(self, sid: str):
         logger.debug(f"Push sid {sid} to be disconnected.")

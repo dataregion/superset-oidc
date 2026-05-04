@@ -4,17 +4,17 @@ from superset.security import SupersetSecurityManager
 from flask_oidc import OpenIDConnect
 from flask_appbuilder.security.views import AuthOIDView
 from flask_login import login_user, logout_user, current_user
-from urllib.parse import quote
 from flask_appbuilder.views import expose
 import urllib.parse
 import logging
-import json
 import jwt
 from .pyjwt import FilteredPyJWKClient
+from .oidc_user_data import ensure_table, get_previous_oidc_role_names, save_oidc_roles
 
 logger = logging.getLogger(__name__)
 
 OIDC_SID_KEY = 'oidc-sid'
+
 
 class OIDCSecurityManager(SupersetSecurityManager):
 
@@ -31,6 +31,8 @@ class OIDCSecurityManager(SupersetSecurityManager):
 
         self.sid_to_disconnect = []
         """List de session id à deconnecter."""
+
+        ensure_table(self.get_session.bind)
     
     def push_sid_to_disconnect(self, sid: str):
         logger.debug(f"Push sid {sid} to be disconnected.")
@@ -163,11 +165,10 @@ class AuthOIDCView(AuthOIDView):
             )
             sync_mode = "overwrite"
 
-        extra = json.loads(user.extra) if user.extra else {}
+        db_session = sm.get_session
 
         if sync_mode == "merge":
-            prev_oidc_roles_upper = {r.upper() for r in extra.get("oidc_roles", [])}
-
+            prev_oidc_roles_upper = get_previous_oidc_role_names(db_session, user.id)
             existing_roles = list(user.roles) if user.roles else []
             # Garde uniquement les rôles qui n'avaient pas été assignés par OIDC au dernier login
             # (= rôles assignés manuellement), puis ajoute les rôles du token courant
@@ -178,9 +179,7 @@ class AuthOIDCView(AuthOIDView):
         else:
             applied_roles = oidc_roles
 
-        logger.debug(f"On garde les roles oidc en session. OIDC roles: {oidc_roles}")
-        extra["oidc_roles"] = [r.name for r in oidc_roles]
-        user.extra = json.dumps(extra)
+        save_oidc_roles(db_session, user.id, oidc_roles)
 
         logger.debug(f"Application des roles {applied_roles} à {user} (mode={sync_mode})")
         user.roles = applied_roles

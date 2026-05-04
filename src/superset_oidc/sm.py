@@ -62,7 +62,13 @@ class AuthOIDCView(AuthOIDView):
             _firstname = _oidc_auth_profile.get( 'given_name', None )
             _lastname = _oidc_auth_profile.get( 'family_name', None )
             _email = _oidc_auth_profile.get( 'email' , None)
-            _sid = _oidc_auth_profile.get( 'sid' , None)
+            _sid = _oidc_auth_profile.get('sid')
+            if _sid is None:
+                raise ValueError(
+                    "The OIDC token does not contain a 'sid' claim. "
+                    "Back-channel logout requires session ID tracking — "
+                    "check your OIDC provider configuration."
+                )
 
             if user is None:
                 user = sm.add_user(_username, _firstname, _lastname, _email, [])

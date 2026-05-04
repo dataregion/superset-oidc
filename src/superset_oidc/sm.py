@@ -6,6 +6,8 @@ from flask_appbuilder.security.views import AuthOIDView
 from flask_login import login_user, logout_user, current_user
 from flask_appbuilder.views import expose
 import urllib.parse
+import urllib.request
+import json
 import logging
 import jwt
 from .pyjwt import FilteredPyJWKClient
@@ -32,12 +34,23 @@ class OIDCSecurityManager(SupersetSecurityManager):
         self.sid_to_disconnect = []
         """List de session id à deconnecter."""
 
+        self._provider_config: dict | None = None
+
         ensure_table(self.get_session.bind)
     
     def push_sid_to_disconnect(self, sid: str):
         logger.debug(f"Push sid {sid} to be disconnected.")
         self.sid_to_disconnect.append(sid)
     
+    def get_provider_config(self) -> dict:
+        """Fetches and caches the OIDC discovery document."""
+        if self._provider_config is None:
+            issuer = self.oid.client_secrets.get('issuer', '').rstrip('/')
+            url = f"{issuer}/.well-known/openid-configuration"
+            with urllib.request.urlopen(url) as resp:
+                self._provider_config = json.loads(resp.read())
+        return self._provider_config
+
     def pop_sid_to_disconnect(self, sid: str):
         if sid in self.sid_to_disconnect:
             self.sid_to_disconnect.remove(sid)
@@ -92,14 +105,20 @@ class AuthOIDCView(AuthOIDView):
 
     @expose('/logout/', methods=['GET', 'POST'])
     def logout(self):
-        oidc = self.appbuilder.sm.oid
+        sm: OIDCSecurityManager = self.appbuilder.sm
+        oidc = sm.oid
 
         oidc.logout()
         super(AuthOIDCView, self).logout()
         redirect_url = urllib.parse.quote_plus(request.url_root.strip('/') + self.appbuilder.get_url_for_login)
 
-        return redirect(
-            oidc.client_secrets.get('issuer') + '/protocol/openid-connect/logout?client_id='+ oidc.client_secrets.get('client_id')+'&post_logout_redirect_uri=' + redirect_url)
+        provider_config = sm.get_provider_config()
+        end_session_endpoint = provider_config.get('end_session_endpoint')
+        if not end_session_endpoint:
+            raise ValueError("OIDC discovery document does not contain 'end_session_endpoint'")
+
+        client_id = oidc.client_secrets.get('client_id')
+        return redirect(f"{end_session_endpoint}?client_id={client_id}&post_logout_redirect_uri={redirect_url}")
     
     @expose('/sso-logout/', methods=['GET', 'POST'])
     def sso_logout(self):

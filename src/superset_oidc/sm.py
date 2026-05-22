@@ -116,6 +116,8 @@ class AuthOIDCView(AuthOIDView):
         sm: OIDCSecurityManager = self.appbuilder.sm
         oidc = sm.oid
 
+        id_token_hint = session.get('oidc_auth_token', {}).get('id_token')
+
         oidc.logout()
         super(AuthOIDCView, self).logout()
         redirect_url = urllib.parse.quote_plus(request.url_root.strip('/') + self.appbuilder.get_url_for_login)
@@ -126,7 +128,10 @@ class AuthOIDCView(AuthOIDView):
             raise ValueError("OIDC discovery document does not contain 'end_session_endpoint'")
 
         client_id = oidc.client_secrets.get('client_id')
-        return redirect(f"{end_session_endpoint}?client_id={client_id}&post_logout_redirect_uri={redirect_url}")
+        params = f"client_id={client_id}&post_logout_redirect_uri={redirect_url}"
+        if id_token_hint:
+            params += f"&id_token_hint={id_token_hint}"
+        return redirect(f"{end_session_endpoint}?{params}")
     
     @expose('/sso-logout/', methods=['GET', 'POST'])
     def sso_logout(self):

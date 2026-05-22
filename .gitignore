@@ -4,3 +4,4 @@ dist/
 build/
 PKG-INFO
 *.egg-info
+.envrc

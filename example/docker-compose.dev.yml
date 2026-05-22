@@ -1,0 +1,18 @@
+services:
+  superset_db:
+    volumes:
+      - ..:/app/superset_oidc_dev
+    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset db upgrade"
+
+  superset_init:
+    volumes:
+      - ..:/app/superset_oidc_dev
+    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset init"
+
+  superset:
+    volumes:
+      - ..:/app/superset_oidc_dev
+    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset run -p 8088 --host 0.0.0.0 --with-threads --reload --debugger"
+    environment:
+      FLASK_ENV: development
+      SUPERSET_ENV: development

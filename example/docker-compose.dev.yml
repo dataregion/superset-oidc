@@ -12,7 +12,14 @@ services:
   superset:
     volumes:
       - ..:/app/superset_oidc_dev
-    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset run -p 8088 --host 0.0.0.0 --with-threads --reload --debugger"
+    ports:
+      - "5678:5678"
+    command: >
+      bash -c "
+        git config --global --add safe.directory /app/superset_oidc_dev &&
+        uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev debugpy &&
+        /app/.venv/bin/python -m debugpy --listen 0.0.0.0:5678           -m flask --app 'superset.app:create_app()' run -p 8088 --host 0.0.0.0 --no-reload
+      "
     environment:
       FLASK_ENV: development
       SUPERSET_ENV: development

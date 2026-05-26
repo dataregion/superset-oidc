@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.2]
+
+### Fixed
+- Logout now correctly clears all OIDC session keys (`oidc_auth_token`, `oidc_auth_profile`, `oidc-sid`) from the Flask session. 
+Previously, `oidc.logout()` (deprecated stub returning an ignored redirect) and `logout_user()` (Flask-Login, unaware of OIDC keys) left the token data intact, causing `flask_oidc` to treat the user as still authenticated on subsequent requests.
+
+### Changed
+- Logout is now exposed at `/oidc-logout/` instead of `/logout/`.
+- Logout session-clearing logic is encapsulated in `AuthOIDCView._do_logout()`.
 
 ## [1.3.1] - 2026-05-04
 

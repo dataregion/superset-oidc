@@ -111,15 +111,21 @@ class AuthOIDCView(AuthOIDView):
 
         return handle_login()
 
-    @expose('/logout/', methods=['GET', 'POST'])
+    def _do_logout(self):
+        """Clears all OIDC and Flask-Login session state for the current user."""
+        for key in ('oidc_auth_token', 'oidc_auth_profile', OIDC_SID_KEY):
+            session.pop(key, None)
+        logout_user()
+
+    @expose('/oidc-logout/', methods=['GET', 'POST'])
     def logout(self):
         sm: OIDCSecurityManager = self.appbuilder.sm
         oidc = sm.oid
 
         id_token_hint = session.get('oidc_auth_token', {}).get('id_token')
 
-        oidc.logout()
-        super(AuthOIDCView, self).logout()
+        self._do_logout()
+
         redirect_url = urllib.parse.quote_plus(request.url_root.strip('/') + self.appbuilder.get_url_for_login)
 
         provider_config = sm.get_provider_config()

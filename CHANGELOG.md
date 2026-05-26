@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.2]
+## [1.3.3] - 2026-05-26
+
+### Fixed
+- Example `superset_config.py` now activates server-side filesystem sessions via
+  `flask-session` to prevent the 4096-byte cookie limit from causing an infinite redirect
+  loop on second login (OIDC tokens easily exceed this limit).
+
+## [1.3.2] - 2026-05-26
 
 ### Fixed
 - Logout now correctly clears all OIDC session keys (`oidc_auth_token`, `oidc_auth_profile`, `oidc-sid`) from the Flask session. 
@@ -69,7 +76,9 @@ Previously, `oidc.logout()` (deprecated stub returning an ignored redirect) and 
 - Back-channel (SSO) logout support.
 - Configurable default role via `CUSTOM_AUTH_USER_REGISTRATION_ROLE`.
 
-[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.3.1...HEAD
+[Unreleased]: https://github.com/dataregion/superset-oidc/compare/1.3.3...HEAD
+[1.3.3]: https://github.com/dataregion/superset-oidc/compare/1.3.2...1.3.3
+[1.3.2]: https://github.com/dataregion/superset-oidc/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/dataregion/superset-oidc/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/dataregion/superset-oidc/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/dataregion/superset-oidc/compare/1.2.1...1.2.2

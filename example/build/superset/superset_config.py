@@ -21,11 +21,23 @@ MAPBOX_API_KEY = ''
 ENABLE_PROXY_FIX = True
 
 ###################################################################################
+# Server-side sessions
+# OIDC tokens (id_token + access_token + refresh_token) easily exceed the 4096-byte
+# cookie limit, causing an infinite redirect loop on second login. Storing sessions
+# server-side moves the payload off the cookie; only a signed session ID is kept.
+#
+SESSION_TYPE = 'filesystem'
+SESSION_FILE_DIR = '/tmp/superset_sessions'
+SESSION_USE_SIGNER = True
+SESSION_PERMANENT = False
+
+###################################################################################
 # Superset OIDC part
 # Here is the meat of the configuration
 #
 from flask import Flask
 from flask_appbuilder.security.manager import AUTH_OID
+from flask_session import Session
 
 from superset_oidc.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
 AUTH_TYPE = AUTH_OID
@@ -43,7 +55,17 @@ AUTH_USER_REGISTRATION = True
 #####################################
 # ADDITIONAL_MIDDLEWARE = [AuthMiddleware, ]
 
+def _init_server_side_sessions(app: Flask) -> None:
+    """Initialize server-side sessions. Works in conjunction with SESSION_TYPE,
+    SESSION_FILE_DIR, SESSION_USE_SIGNER and SESSION_PERMANENT defined above."""
+    import os
+    os.makedirs(app.config.get('SESSION_FILE_DIR', '/tmp/superset_sessions'), exist_ok=True)
+    Session(app)
+
+
 def FLASK_APP_MUTATOR(app: Flask):
+    _init_server_side_sessions(app)
+
     @app.before_request
     def before_request():
         oidc_check_loggedin_or_logout()

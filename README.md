@@ -19,6 +19,29 @@ Also, don't forget to include [client_secret.json](./example/build/superset/clie
 | CUSTOM_AUTH_USER_REGISTRATION_ROLE | `string` (a role name) | Default role attributed to a superset user. |
 | CUSTOM_AUTH_ROLES_SYNC_MODE        | `string`               | Role sync mode: `overwrite` (default) or `merge`. |
 
+## Recommended configuration
+
+### Server-side sessions
+
+OIDC tokens (id\_token, access\_token, refresh\_token) stored in the session can easily exceed Flask's default 4096-byte cookie limit, causing the browser to silently drop the cookie and producing an infinite redirect loop on second login.
+
+It is strongly recommended to enable server-side sessions via [`flask-session`](https://flask-session.readthedocs.io/) (already bundled with Superset 5):
+
+```python
+# superset_config.py
+from flask_session import Session
+
+SESSION_TYPE = 'filesystem'
+SESSION_FILE_DIR = '/tmp/superset_sessions'
+SESSION_USE_SIGNER = True
+SESSION_PERMANENT = False
+
+def FLASK_APP_MUTATOR(app):
+    import os
+    os.makedirs(app.config.get('SESSION_FILE_DIR', '/tmp/superset_sessions'), exist_ok=True)
+    Session(app)
+```
+
 ## Limitations
 
 Here are the limitation and the impacts on the superset instance.

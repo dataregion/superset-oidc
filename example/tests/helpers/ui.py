@@ -13,6 +13,10 @@ def login_via_ui(page: Page, base_url: str, username: str, password: str) -> Non
     page.get_by_label("Password", exact=True).fill(password)
     page.get_by_role("button", name="Sign In").click()
     page.wait_for_url(f"{base_url}/**")
+    # The landing page (e.g. the welcome page) fires its own background API calls right
+    # after load; navigating away before they settle races a stray client-side redirect
+    # against whatever navigation comes next and can abort it (net::ERR_ABORTED).
+    page.wait_for_load_state("networkidle")
 
 
 def logout_via_direct_link(page: Page, base_url: str) -> None:

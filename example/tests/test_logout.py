@@ -27,7 +27,9 @@ def test_backchannel_logout(page, base_url, login_as, keycloak_admin):
     # The back-channel POST to /sso-logout/ only marks the session for disconnection;
     # the local session is actually dropped on the next incoming request, via the
     # oidc_check_loggedin_or_logout before_request hook - so poll instead of checking once.
-    deadline = time.monotonic() + 15
+    # 30s gives headroom on a slower/shared CI runner, where Keycloak's async delivery
+    # of the logout token can take noticeably longer than on a fast local machine.
+    deadline = time.monotonic() + 30
     status = None
     while time.monotonic() < deadline:
         status = page.request.get(f"{base_url}/api/v1/me/").status

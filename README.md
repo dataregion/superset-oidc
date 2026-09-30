@@ -90,28 +90,83 @@ CUSTOM_AUTH_ROLES_SYNC_MODE = "merge"
 
 > **Note:** this script is intended for advanced users. Run with `--help` for the full list of options.
 
-## Running example
+## Development environment
 
-- With docker, run the [docker-compose.yml](./example/docker-compose.yml)
+The [example/](./example/) stack is a self-contained dev environment: Superset 5 plus a
+Keycloak preconfigured by realm import, so no click-through setup is needed.
 
 ```bash
 cd example
-docker compose up -d --build --force-recreate
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-- go to [http://localhost:8080](http://localhost:8080) and connect as `admin`:`admin`
-  - Create client `superset` on realm `master`
-  - Toggle client authentication
-    - root url and home url: `http://localhost:8088`
-    - fill as depicted here
-      ![configuration client superset](./example/configuration_client_superset.png)
-    - Go to clients > superset > credentials > copy the client secret and paste it in [client_secret.json](./example/build/superset/client_secret.json) on field `client_secret`
-    - restart superset `docker compose up -d --build --force-recreate superset`
-    - Create a user. Don't forget to fill in first name and last name.
-    - Add credentials to the user.
+The dev override mounts the working tree and the configuration files, installs the module
+in editable mode and runs Superset under
+[debugpy](https://github.com/microsoft/debugpy) — attach a debugger to `localhost:5678`.
+`docker compose restart superset` picks up both code and configuration changes; no rebuild
+is needed.
 
-Now, you can visit [http://localhost:8088](http://localhost:8088) and authenticate with previously setup user.
+Omit `-f docker-compose.dev.yml` to run against the module version baked into the image
+instead of the working tree.
 
+| Service          | URL                                              | Credentials     |
+| ---------------- | ------------------------------------------------ | --------------- |
+| Superset         | http://localhost:8088                            | see users below |
+| Keycloak admin   | http://localhost:8080                            | `admin`:`admin` |
+
+The `superset-dev` realm seeds four users, each with password equal to their username:
+
+| User          | Client roles in Keycloak      | Exercises                                     |
+| ------------- | ----------------------------- | --------------------------------------------- |
+| `admin.dev`   | `Admin`                       | nominal admin login                           |
+| `alpha.dev`   | `Alpha`, `sql_lab`            | multiple roles                                |
+| `gamma.dev`   | `Gamma`, `NoSupersetCounterpart` | a role with no Superset counterpart is skipped |
+| `noroles.dev` | *(none)*                      | only `CUSTOM_AUTH_USER_REGISTRATION_ROLE` applies |
+
+The Superset container joins Keycloak's network namespace (`network_mode:
+"service:keycloak"`). The issuer in the ID token has to be byte-identical to the one
+Superset validates against, which means the same URL must work from the browser and from
+inside the container — sharing the namespace makes `http://localhost:8080` designate
+Keycloak on both sides, with no external DNS and no `/etc/hosts` entry on the host. Both
+ports of the pair are therefore published by the `keycloak` service.
+
+Back-channel logout is wired to `http://localhost:8088/sso-logout/`, which reaches
+Superset from Keycloak for the same reason. To exercise it, log in and then force the
+logout from Keycloak:
+
+```bash
+AT=$(curl -s -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=admin-cli -d username=admin -d password=admin \
+  | python3 -c "import json,sys;print(json.load(sys.stdin)['access_token'])")
+KCUSER=$(curl -s -H "Authorization: Bearer $AT" \
+  "http://localhost:8080/admin/realms/superset-dev/users?username=alpha.dev" \
+  | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
+curl -X POST -H "Authorization: Bearer $AT" \
+  "http://localhost:8080/admin/realms/superset-dev/users/$KCUSER/logout"
+```
+
+The next Superset request then terminates the local session.
+
+To start over from empty databases:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+```
+
+### Editing the realm
+
+The realm lives in [realm-superset-dev.json](./example/build/keycloak/realm-superset-dev.json).
+It is imported only when the Keycloak database is empty, so changes require a
+`down -v`. Changes made through the admin console are *not* written back to the file —
+export the realm from the console if you want to keep them.
+
+Two settings there matter to this module:
+
+- the `superset-client-roles` protocol mapper must keep `userinfo.token.claim` enabled:
+  the module reads roles from `session['oidc_auth_profile']`, which flask-oidc populates
+  from the userinfo endpoint, not from the ID token.
+- `accessTokenLifespan` drives how often flask-oidc refreshes the token on its
+  `before_request` hook — lower it to reproduce refresh-heavy behaviour.
 
 ## Resources
 

@@ -1,0 +1,105 @@
+{
+  "realm": "superset-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "client": {
+      "superset": [
+        { "name": "Admin", "description": "Maps to the built-in Superset Admin role" },
+        { "name": "Alpha", "description": "Maps to the built-in Superset Alpha role" },
+        { "name": "Gamma", "description": "Maps to the built-in Superset Gamma role" },
+        { "name": "sql_lab", "description": "Maps to the built-in Superset sql_lab role" },
+        { "name": "NoSupersetCounterpart", "description": "Deliberately absent from Superset: exercises the unmatched-role path" }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "superset",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "superset-dev-secret-not-for-production",
+      "rootUrl": "http://localhost:8088",
+      "baseUrl": "http://localhost:8088",
+      "redirectUris": ["http://localhost:8088/*"],
+      "webOrigins": ["http://localhost:8088"],
+      "fullScopeAllowed": false,
+      "attributes": {
+        "backchannel.logout.url": "http://localhost:8088/sso-logout/",
+        "backchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "http://localhost:8088/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "superset-client-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "superset",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin.dev",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Dev",
+      "email": "admin.dev@example.org",
+      "credentials": [{ "type": "password", "value": "admin.dev", "temporary": false }],
+      "clientRoles": { "superset": ["Admin"] }
+    },
+    {
+      "username": "alpha.dev",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alpha",
+      "lastName": "Dev",
+      "email": "alpha.dev@example.org",
+      "credentials": [{ "type": "password", "value": "alpha.dev", "temporary": false }],
+      "clientRoles": { "superset": ["Alpha", "sql_lab"] }
+    },
+    {
+      "username": "gamma.dev",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Gamma",
+      "lastName": "Dev",
+      "email": "gamma.dev@example.org",
+      "credentials": [{ "type": "password", "value": "gamma.dev", "temporary": false }],
+      "clientRoles": { "superset": ["Gamma", "NoSupersetCounterpart"] }
+    },
+    {
+      "username": "noroles.dev",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Noroles",
+      "lastName": "Dev",
+      "email": "noroles.dev@example.org",
+      "credentials": [{ "type": "password", "value": "noroles.dev", "temporary": false }],
+      "clientRoles": { "superset": [] }
+    }
+  ]
+}

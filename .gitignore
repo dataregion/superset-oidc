@@ -1,7 +1,7 @@
 .venv
 __pycache__
 dist/
-build/
+/build/
 PKG-INFO
 *.egg-info
 .envrc

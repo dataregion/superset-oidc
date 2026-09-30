@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- The `example/` stack is now a one-command development environment. Keycloak is
+  preconfigured through a committed realm import (`superset-dev` realm, client, role
+  mapper, back-channel logout URL and four seeded users), removing the manual client
+  creation and secret copy/paste that previously required a Superset restart.
+- Service startup is now ordered with health checks and completion conditions instead of
+  racing, and Keycloak is aligned on 25.0.6.
+- The Superset container shares Keycloak's network namespace in the example stack, so that
+  `http://localhost:8080` resolves to Keycloak identically from the browser and from
+  Superset. The issuer URL no longer depends on external DNS or a host `/etc/hosts` entry.
+- The development override bind-mounts `superset_config.py` and `client_secret.json`, so
+  configuration changes need a restart rather than an image rebuild.
+
+### Fixed
+- `WTF_CSRF_EXEMPT_LIST` in the example configuration now names the view functions
+  flask-wtf actually matches (`superset_oidc.sm.*`). The previous `custom.sm.*` entries
+  matched nothing, so back-channel logout calls from the provider were rejected with a
+  missing-CSRF-token error.
+
+### Removed
+- Dead `configs:` block in `example/docker-compose.yml`, which referenced files under an
+  empty `example/config/` directory that no service consumed.
+
 ## [1.3.3] - 2026-05-26
 
 ### Fixed

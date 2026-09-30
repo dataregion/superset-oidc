@@ -1,14 +1,8 @@
-version: "3.9"
-
-configs:
-  config_superset.v1:
-    file: ./config/superset_config.py
-  config_superset_client_secret.v1:
-    file: ./config/client_secret.json
+name: superset-oidc-dev
 
 volumes:
-  db_data_2:
-  kc_db_data_2:
+  db_data:
+  kc_db_data:
 
 services:
   # DATABASES
@@ -19,7 +13,13 @@ services:
       POSTGRES_PASSWORD: passwd
       POSTGRES_DB: superset
     volumes:
-      - db_data_2:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d superset"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   kc_db:
     image: postgres:16.1
     environment:
@@ -27,14 +27,30 @@ services:
       POSTGRES_PASSWORD: passwd
       POSTGRES_DB: keycloak
     volumes:
-      - kc_db_data_2:/var/lib/postgresql/data
-  
+      - kc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d keycloak"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   # KEYCLOAK, as an oidc provider
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.4
-    command: start-dev
+    image: quay.io/keycloak/keycloak:25.0.6
+    command: start-dev --import-realm
+    depends_on:
+      kc_db:
+        condition: service_healthy
+    # Superset joins this container's network namespace (see its network_mode), so that
+    # http://localhost:8080 designates Keycloak both from the browser and from Superset.
+    # The issuer URL has to be byte-identical on both sides, and sharing the namespace is
+    # the only way to get that without external DNS or an /etc/hosts entry on the host.
+    # Consequence: every published port of the pair is declared here.
     ports:
-      - 8080:8080
+      - 8080:8080  # keycloak
+      - 8088:8088  # superset
+    volumes:
+      - ./build/keycloak/realm-superset-dev.json:/opt/keycloak/data/import/realm-superset-dev.json:ro
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: kc_db
@@ -47,21 +63,34 @@ services:
       KC_HTTP_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /realms/superset-dev HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
 
   # superset - initialization of the db
   superset_db:
     build: ./build/superset
     command: superset db upgrade
-  
-  # supserset - initialization of roles and permission
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # superset - initialization of roles and permission
   superset_init:
     build: ./build/superset
     command: superset init
-  
+    depends_on:
+      superset_db:
+        condition: service_completed_successfully
+
   # superset application itself
   superset:
     build: ./build/superset
-    ports:
-      - 8088:8088
-    extra_hosts:
-      - "keycloak.localhost:host-gateway"
+    network_mode: "service:keycloak"
+    depends_on:
+      superset_init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy

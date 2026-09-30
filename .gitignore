@@ -5,3 +5,4 @@ dist/
 PKG-INFO
 *.egg-info
 .envrc
+.vscode/

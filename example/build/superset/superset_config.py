@@ -50,7 +50,7 @@ CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
 CUSTOM_AUTH_USER_REGISTRATION_ROLE = "Gamma" # Default role assigned to every user on login
 CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" # "overwrite" (default) or "merge" to preserve manually assigned roles
 
-## Configuration du module flask-oidc. part of superset oidc ########################
+## flask-oidc configuration, consumed by superset-oidc ##############################
 OIDC_CLIENT_SECRETS =  '/app/pythonpath/client_secret.json'
 OIDC_ID_TOKEN_COOKIE_SECURE = False
 OIDC_OPENID_REALM = "superset-dev"

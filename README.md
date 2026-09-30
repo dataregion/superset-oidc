@@ -96,6 +96,16 @@ The [example/](./example/) stack is a self-contained dev environment: Superset 5
 Keycloak preconfigured by realm import, so no click-through setup is needed.
 
 ```bash
+mise run dev:up
+```
+
+`mise tasks` lists every development task: `dev:reset` to start over from empty databases,
+`dev:logs:oidc` to follow this module's logs only, `dev:roles` to show the synchronized
+roles, `dev:kc-logout` to trigger a back-channel logout. `mise run test` drives the
+end-to-end tests against the running stack. Without [mise](https://mise.jdx.dev/), the
+equivalent of `dev:up` is:
+
+```bash
 cd example
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
@@ -103,8 +113,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 The dev override mounts the working tree and the configuration files, installs the module
 in editable mode and runs Superset under
 [debugpy](https://github.com/microsoft/debugpy) — attach a debugger to `localhost:5678`.
-`docker compose restart superset` picks up both code and configuration changes; no rebuild
-is needed.
+`mise run dev:restart` picks up both code and configuration changes; no rebuild is needed.
 
 Omit `-f docker-compose.dev.yml` to run against the module version baked into the image
 instead of the working tree.
@@ -145,7 +154,8 @@ curl -X POST -H "Authorization: Bearer $AT" \
   "http://localhost:8080/admin/realms/superset-dev/users/$KCUSER/logout"
 ```
 
-The next Superset request then terminates the local session.
+The next Superset request then terminates the local session — which is what
+`mise run test:backchannel-logout` asserts.
 
 To start over from empty databases:
 

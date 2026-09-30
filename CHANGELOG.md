@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `mise.toml` exposing the development tasks: `dev:up`, `dev:down`, `dev:reset`,
+  `dev:restart`, `dev:logs`, `dev:logs:oidc`, `dev:shell`, `dev:psql`, `dev:roles`,
+  `dev:kc-logout`, plus `compose` and `build`.
+- End-to-end tests runnable against the development stack: `test:login` drives a full OIDC
+  login, `test:backchannel-logout` asserts a Keycloak-initiated logout terminates the local
+  session, and `test` runs both in sequence. Each takes a user name, defaulting to
+  `alpha.dev` and `gamma.dev` respectively.
+
 ### Changed
 - The `example/` stack is now a one-command development environment. Keycloak is
   preconfigured through a committed realm import (`superset-dev` realm, client, role
@@ -20,15 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The development override bind-mounts `superset_config.py` and `client_secret.json`, so
   configuration changes need a restart rather than an image rebuild.
 
+### Removed
+- Dead `configs:` block in `example/docker-compose.yml`, which referenced files under an
+  empty `example/config/` directory that no service consumed.
+
 ### Fixed
 - `WTF_CSRF_EXEMPT_LIST` in the example configuration now names the view functions
   flask-wtf actually matches (`superset_oidc.sm.*`). The previous `custom.sm.*` entries
   matched nothing, so back-channel logout calls from the provider were rejected with a
   missing-CSRF-token error.
-
-### Removed
-- Dead `configs:` block in `example/docker-compose.yml`, which referenced files under an
-  empty `example/config/` directory that no service consumed.
 
 ## [1.3.3] - 2026-05-26
 

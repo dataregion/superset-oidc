@@ -39,6 +39,7 @@ SESSION_PERMANENT = False
 # Here is the meat of the configuration
 #
 import logging
+import os
 
 from flask import Flask
 from flask_appbuilder.security.manager import AUTH_OID
@@ -48,7 +49,10 @@ from superset_oidc.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
 AUTH_TYPE = AUTH_OID
 CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
 CUSTOM_AUTH_USER_REGISTRATION_ROLE = "Gamma" # Default role assigned to every user on login
-CUSTOM_AUTH_ROLES_SYNC_MODE = "overwrite" # "overwrite" (default) or "merge" to preserve manually assigned roles
+# "overwrite" (default) or "merge" to preserve manually assigned roles.
+# Driven by SUPERSET_OIDC_SYNC_MODE so the e2e merge-mode test (mise run test:merge-mode)
+# can flip it via a docker-compose override without touching this file.
+CUSTOM_AUTH_ROLES_SYNC_MODE = os.environ.get("SUPERSET_OIDC_SYNC_MODE", "overwrite")
 
 ## flask-oidc configuration, consumed by superset-oidc ##############################
 OIDC_CLIENT_SECRETS =  '/app/pythonpath/client_secret.json'

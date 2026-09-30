@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mise.toml` exposing the development tasks: `dev:up`, `dev:down`, `dev:reset`,
   `dev:restart`, `dev:logs`, `dev:logs:oidc`, `dev:shell`, `dev:psql`, `dev:roles`,
   `dev:kc-logout`, plus `compose` and `build`.
-- End-to-end tests runnable against the development stack: `test:login` drives a full OIDC
-  login, `test:backchannel-logout` asserts a Keycloak-initiated logout terminates the local
-  session, and `test` runs both in sequence. Each takes a user name, defaulting to
-  `alpha.dev` and `gamma.dev` respectively.
+- A pytest + Playwright end-to-end suite (`example/tests/`) runnable against the
+  development stack via `mise run test`: login (including rejected/invalid credentials),
+  front- and back-channel logout, role synchronization and permission enforcement for all
+  four seeded users, first-login account provisioning, and role changes across a
+  re-login. `mise run test:install` provisions the Playwright browser once.
+- `CUSTOM_AUTH_ROLES_SYNC_MODE` in the example `superset_config.py` is now read from the
+  `SUPERSET_OIDC_SYNC_MODE` environment variable (default unchanged: `overwrite`), and a
+  new `docker-compose.merge-mode.yml` override plus `mise run test:merge-mode` task
+  exercise `merge` mode end-to-end, restoring the default config afterward.
 
 ### Changed
 - The `example/` stack is now a one-command development environment. Keycloak is

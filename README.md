@@ -102,8 +102,8 @@ mise run dev:up
 `mise tasks` lists every development task: `dev:reset` to start over from empty databases,
 `dev:logs:oidc` to follow this module's logs only, `dev:roles` to show the synchronized
 roles, `dev:kc-logout` to trigger a back-channel logout. `mise run test` drives the
-end-to-end tests against the running stack. Without [mise](https://mise.jdx.dev/), the
-equivalent of `dev:up` is:
+[end-to-end tests](#end-to-end-tests) against the running stack. Without
+[mise](https://mise.jdx.dev/), the equivalent of `dev:up` is:
 
 ```bash
 cd example
@@ -155,12 +155,53 @@ curl -X POST -H "Authorization: Bearer $AT" \
 ```
 
 The next Superset request then terminates the local session — which is what
-`mise run test:backchannel-logout` asserts.
+the `test_backchannel_logout` end-to-end test below asserts.
 
 To start over from empty databases:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+```
+
+### End-to-end tests
+
+[example/tests/](./example/tests/) is a [pytest](https://pytest.org) +
+[Playwright](https://playwright.dev/python/) suite that drives a real browser against the
+running dev stack: login, logout (front-channel and Keycloak-initiated back-channel),
+role synchronization for all four seeded users (label-level via the API and
+permission-level by checking access to an admin-only page), first-login account
+provisioning, and role changes across a re-login. It replaces the ad hoc curl-based
+checks this stack used to ship with.
+
+```bash
+mise run dev:up
+mise run test:install  # one-time Playwright browser download
+mise run test
+```
+
+The suite is idempotent: every test cleans up what it creates (throwaway Keycloak users,
+manually-granted roles), so it can be re-run against a long-lived stack without a
+`dev:reset`. It reads `SUPERSET_URL`, `KEYCLOAK_URL` and `KEYCLOAK_REALM` from the
+environment (already set by `mise.toml`), runs headless Chromium by default, and keeps a
+trace + screenshot for any failing test under `example/tests/test-results/` — open a
+trace with `uv run --group e2e playwright show-trace <path>`.
+
+If `test:install` can't download Chromium's headless-shell build (blocked CDN, corporate
+proxy), and a full Chromium is already available under `~/.cache/ms-playwright/`, pass
+`--browser-channel chromium` to `mise run test`/`test:merge-mode` to use that instead.
+
+#### Merge-mode role sync
+
+`CUSTOM_AUTH_ROLES_SYNC_MODE=merge` (see [How roles are managed](#how-roles-are-managed))
+isn't exercised by the default stack, which runs in `overwrite` mode. A dedicated task
+brings Superset up with merge mode enabled (via `SUPERSET_OIDC_SYNC_MODE`, read by
+[superset_config.py](./example/build/superset/superset_config.py) and set by the
+[docker-compose.merge-mode.yml](./example/docker-compose.merge-mode.yml) override), runs
+the merge-mode test, and restores `superset`/`superset_init`/`superset_db` to the default
+`overwrite` config afterward — even if the test fails:
+
+```bash
+mise run test:merge-mode
 ```
 
 ### Editing the realm

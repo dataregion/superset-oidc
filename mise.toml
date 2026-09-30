@@ -110,97 +110,56 @@ curl -sf -X POST -H "Authorization: Bearer $token" \
 echo "Back-channel logout requested for $user"
 """
 
+[tasks."test:install"]
+description = "One-time Playwright browser provisioning for the e2e suite"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+uv run --group e2e playwright install chromium "$@"
+echo "If this is a fresh machine and the browser fails to launch, retry with:"
+echo "  uv run --group e2e playwright install --with-deps chromium"
+echo "(needs root to install OS packages; not run by default here)"
+"""
+
 [tasks.test]
-description = "Run every end-to-end test against the running development environment"
-# Sequential on purpose: `depends` would run these in parallel, and the back-channel test
-# logs the user out of every Keycloak session, including the one the login test is using.
+description = "Run the e2e suite (pytest + Playwright) against the running development environment"
 run = """
 #!/usr/bin/env bash
 set -euo pipefail
-mise run test:login
-mise run test:backchannel-logout
+uv run --group e2e pytest -m "not merge_mode" "$@"
 """
 
-[tasks."test:login"]
-description = "Drive a full OIDC login and assert the Superset session is established (default: alpha.dev)"
+[tasks."test:merge-mode"]
+description = "Run the merge-mode role-sync e2e test, temporarily reconfiguring then restoring Superset"
 run = """
 #!/usr/bin/env bash
 set -euo pipefail
-user="${1:-alpha.dev}"
-jar=$(mktemp); hdr=$(mktemp)
-trap 'rm -f "$jar" "$hdr"' EXIT
-req() { curl -s -c "$jar" -b "$jar" -D "$hdr" "$@"; }
-loc() {
-  local l
-  l=$(grep -i '^location:' "$hdr" | tail -1 | tr -d '\\r' | sed 's/^[Ll]ocation: //')
-  case "$l" in http*) printf '%s' "$l" ;; *) printf '%s%s' "$SUPERSET_URL" "$l" ;; esac
+default_compose_file="$COMPOSE_FILE"
+merge_compose_file="$COMPOSE_FILE:{{config_root}}/example/docker-compose.merge-mode.yml"
+
+# superset has no compose healthcheck of its own, so wait for it to actually answer
+# rather than racing the test suite (or a later `mise run test`) against a container
+# that's still starting up.
+wait_ready() {
+  for _ in $(seq 1 30); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPERSET_URL/login/" || true)
+    [ "$code" = "302" ] && return 0
+    sleep 2
+  done
+  echo "Superset did not become ready in time" >&2
+  return 1
 }
 
-req -o /dev/null "$SUPERSET_URL/login/"
-req -o /dev/null "$(loc)"
-page=$(req -L "$(loc)")
-action=$(printf '%s' "$page" | grep -oP 'action="\\K[^"]+' | head -1 | sed 's/&amp;/\\&/g')
-if [ -z "$action" ]; then echo "test:login $user: FAIL (no Keycloak login form)" >&2; exit 1; fi
-req -o /dev/null -X POST "$action" \
-  --data-urlencode "username=$user" --data-urlencode "password=$user" --data-urlencode credentialId=
-req -o /dev/null "$(loc)"   # /authorize: exchanges the code for tokens
-req -o /dev/null "$(loc)"   # /login/: creates the user and synchronizes roles
-
-code=$(curl -s -b "$jar" -o /dev/null -w '%{http_code}' "$SUPERSET_URL/api/v1/me/")
-if [ "$code" != "200" ]; then
-  echo "test:login $user: FAIL (/api/v1/me/ returned $code, expected 200)" >&2
-  exit 1
-fi
-echo "test:login $user: PASS"
-curl -s -b "$jar" "$SUPERSET_URL/api/v1/me/"
-echo
-"""
-
-[tasks."test:backchannel-logout"]
-description = "Assert a Keycloak-initiated logout terminates the local Superset session (default: gamma.dev)"
-# Uses a user of its own, and clears that user's sessions first: when several sessions of
-# the same user are live, Keycloak notifies only one of them, and the test would watch a
-# session that never receives the logout token.
-run = """
-#!/usr/bin/env bash
-set -euo pipefail
-user="${1:-gamma.dev}"
-mise run dev:kc-logout "$user" >/dev/null
-jar=$(mktemp); hdr=$(mktemp)
-trap 'rm -f "$jar" "$hdr"' EXIT
-req() { curl -s -c "$jar" -b "$jar" -D "$hdr" "$@"; }
-loc() {
-  local l
-  l=$(grep -i '^location:' "$hdr" | tail -1 | tr -d '\\r' | sed 's/^[Ll]ocation: //')
-  case "$l" in http*) printf '%s' "$l" ;; *) printf '%s%s' "$SUPERSET_URL" "$l" ;; esac
+restore() {
+  echo "Restoring superset_db/superset_init/superset to the default (overwrite) config..."
+  COMPOSE_FILE="$default_compose_file" docker compose up -d --build superset_db superset_init superset
+  wait_ready
 }
-fail() { echo "test:backchannel-logout $user: FAIL ($1)" >&2; exit 1; }
+trap restore EXIT
 
-req -o /dev/null "$SUPERSET_URL/login/"
-req -o /dev/null "$(loc)"
-page=$(req -L "$(loc)")
-action=$(printf '%s' "$page" | grep -oP 'action="\\K[^"]+' | head -1 | sed 's/&amp;/\\&/g')
-[ -n "$action" ] || fail "no Keycloak login form"
-req -o /dev/null -X POST "$action" \
-  --data-urlencode "username=$user" --data-urlencode "password=$user" --data-urlencode credentialId=
-req -o /dev/null "$(loc)"
-req -o /dev/null "$(loc)"
-
-code=$(curl -s -b "$jar" -o /dev/null -w '%{http_code}' "$SUPERSET_URL/api/v1/me/")
-[ "$code" = "200" ] || fail "could not log in, /api/v1/me/ returned $code"
-
-mise run dev:kc-logout "$user" >/dev/null
-
-# Keycloak posts the logout token out of band, and the module only drops the local
-# session on the next incoming request, so poll instead of checking once.
-deadline=$((SECONDS + 15))
-while :; do
-  code=$(curl -s -b "$jar" -o /dev/null -w '%{http_code}' "$SUPERSET_URL/api/v1/me/")
-  [ "$code" = "401" ] && break
-  [ "$SECONDS" -ge "$deadline" ] && fail "session still alive after 15s, /api/v1/me/ returned $code"
-  sleep 1
-done
-echo "test:backchannel-logout $user: PASS"
+COMPOSE_FILE="$merge_compose_file" docker compose up -d --build superset_db superset_init superset
+wait_ready
+uv run --group e2e pytest -m merge_mode "$@"
 """
 
 [tasks.compose]

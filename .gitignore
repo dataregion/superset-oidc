@@ -6,3 +6,5 @@ PKG-INFO
 *.egg-info
 .envrc
 .vscode/
+example/tests/test-results/
+example/tests/playwright-report/

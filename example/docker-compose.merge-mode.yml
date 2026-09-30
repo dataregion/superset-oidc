@@ -1,0 +1,16 @@
+# Override used by `mise run test:merge-mode` to exercise CUSTOM_AUTH_ROLES_SYNC_MODE="merge"
+# without changing the default dev stack. Not meant to be used standalone; mise appends it
+# to the regular COMPOSE_FILE for the duration of that one task.
+
+services:
+  superset_db:
+    environment:
+      SUPERSET_OIDC_SYNC_MODE: merge
+
+  superset_init:
+    environment:
+      SUPERSET_OIDC_SYNC_MODE: merge
+
+  superset:
+    environment:
+      SUPERSET_OIDC_SYNC_MODE: merge

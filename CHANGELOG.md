@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SUPERSET_OIDC_SYNC_MODE` environment variable (default unchanged: `overwrite`), and a
   new `docker-compose.merge-mode.yml` override plus `mise run test:merge-mode` task
   exercise `merge` mode end-to-end, restoring the default config afterward.
+- `.github/workflows/e2e.yml`: runs the e2e suite (`test` then `test:merge-mode`) against
+  the dev stack on every push and pull request, uploading Playwright traces on failure.
 
 ### Changed
 - The `example/` stack is now a one-command development environment. Keycloak is

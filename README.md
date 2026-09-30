@@ -190,6 +190,11 @@ If `test:install` can't download Chromium's headless-shell build (blocked CDN, c
 proxy), and a full Chromium is already available under `~/.cache/ms-playwright/`, pass
 `--browser-channel chromium` to `mise run test`/`test:merge-mode` to use that instead.
 
+This suite runs on every push and pull request via
+[.github/workflows/e2e.yml](./.github/workflows/e2e.yml), which brings up the same dev
+stack in CI, runs `test` then `test:merge-mode`, and uploads Playwright traces for any
+failing test as a build artifact.
+
 #### Merge-mode role sync
 
 `CUSTOM_AUTH_ROLES_SYNC_MODE=merge` (see [How roles are managed](#how-roles-are-managed))

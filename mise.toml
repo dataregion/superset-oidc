@@ -1,0 +1,179 @@
+#
+# COMPOSE_FILE spares every task the two -f flags and makes them independent of the
+# current directory. Docker Compose derives the project directory from the first file,
+# so the relative paths inside the compose files stay valid.
+#
+[env]
+COMPOSE_FILE = "{{config_root}}/example/docker-compose.yml:{{config_root}}/example/docker-compose.dev.yml"
+SUPERSET_URL = "http://localhost:8088"
+KEYCLOAK_URL = "http://localhost:8080"
+KEYCLOAK_REALM = "superset-dev"
+
+[tasks."dev:up"]
+description = "Start the development environment"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose up -d --build "$@"
+echo "Superset: $SUPERSET_URL — Keycloak: $KEYCLOAK_URL (admin:admin)"
+echo "Users: admin.dev, alpha.dev, gamma.dev, noroles.dev (password equals username)"
+"""
+
+[tasks."dev:down"]
+description = "Stop the development environment, keeping the databases"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose down --remove-orphans "$@"
+"""
+
+[tasks."dev:reset"]
+description = "Recreate the environment from empty databases, reimporting the Keycloak realm"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose down --remove-orphans --volumes
+docker compose up -d --build
+"""
+
+[tasks."dev:restart"]
+description = "Restart Superset to pick up code and configuration changes"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose restart superset
+"""
+
+[tasks."dev:logs"]
+description = "Follow the Superset logs"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose logs -f superset "$@"
+"""
+
+[tasks."dev:logs:oidc"]
+description = "Follow the superset-oidc logs only"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose logs -f superset | grep --line-buffered superset_oidc
+"""
+
+[tasks."dev:shell"]
+description = "Open a shell in the Superset container"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose exec superset bash
+"""
+
+[tasks."dev:psql"]
+description = "Open a psql session on the Superset database"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose exec db psql -U postgres -d superset "$@"
+"""
+
+[tasks."dev:roles"]
+description = "Show the roles synchronized onto each Superset user"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose exec -T db psql -U postgres -d superset -c "
+  select u.username,
+         coalesce(string_agg(r.name, ', ' order by r.name), '(none)') as superset_roles,
+         d.oidc_roles_json as tracked_oidc_roles
+    from ab_user u
+    left join ab_user_role ur on ur.user_id = u.id
+    left join ab_role r on r.id = ur.role_id
+    left join superset_oidc_plugin__userdata d on d.user_id = u.id
+   group by u.username, d.oidc_roles_json
+   order by u.username;"
+"""
+
+[tasks."dev:kc-logout"]
+description = "Ask Keycloak to log a user out, triggering a back-channel logout (default: alpha.dev)"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+user="${1:-alpha.dev}"
+token=$(curl -sf -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
+  -d grant_type=password -d client_id=admin-cli -d username=admin -d password=admin \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+kcuser=$(curl -sf -H "Authorization: Bearer $token" \
+  "$KEYCLOAK_URL/admin/realms/$KEYCLOAK_REALM/users?username=$user&exact=true" \
+  | python3 -c 'import json,sys; u=json.load(sys.stdin); print(u[0]["id"]) if u else sys.exit("no such user")')
+curl -sf -X POST -H "Authorization: Bearer $token" \
+  "$KEYCLOAK_URL/admin/realms/$KEYCLOAK_REALM/users/$kcuser/logout"
+echo "Back-channel logout requested for $user"
+"""
+
+[tasks."test:install"]
+description = "One-time Playwright browser provisioning for the e2e suite"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+uv run --group e2e playwright install chromium "$@"
+echo "If this is a fresh machine and the browser fails to launch, retry with:"
+echo "  uv run --group e2e playwright install --with-deps chromium"
+echo "(needs root to install OS packages; not run by default here)"
+"""
+
+[tasks.test]
+description = "Run the e2e suite (pytest + Playwright) against the running development environment"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+uv run --group e2e pytest -m "not merge_mode" "$@"
+"""
+
+[tasks."test:merge-mode"]
+description = "Run the merge-mode role-sync e2e test, temporarily reconfiguring then restoring Superset"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+default_compose_file="$COMPOSE_FILE"
+merge_compose_file="$COMPOSE_FILE:{{config_root}}/example/docker-compose.merge-mode.yml"
+
+# superset has no compose healthcheck of its own, so wait for it to actually answer
+# rather than racing the test suite (or a later `mise run test`) against a container
+# that's still starting up.
+wait_ready() {
+  for _ in $(seq 1 30); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPERSET_URL/login/" || true)
+    [ "$code" = "302" ] && return 0
+    sleep 2
+  done
+  echo "Superset did not become ready in time" >&2
+  return 1
+}
+
+restore() {
+  echo "Restoring superset_db/superset_init/superset to the default (overwrite) config..."
+  COMPOSE_FILE="$default_compose_file" docker compose up -d --build superset_db superset_init superset
+  wait_ready
+}
+trap restore EXIT
+
+COMPOSE_FILE="$merge_compose_file" docker compose up -d --build superset_db superset_init superset
+wait_ready
+uv run --group e2e pytest -m merge_mode "$@"
+"""
+
+[tasks.compose]
+description = "Forward arbitrary arguments to docker compose on the development stack"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose "$@"
+"""
+
+[tasks.build]
+description = "Build the package distribution artifacts"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+uv build "$@"
+"""

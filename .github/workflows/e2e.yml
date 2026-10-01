@@ -1,0 +1,63 @@
+name: E2E tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+
+      - uses: jdx/mise-action@v5
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+
+      - name: Install Playwright browser (with OS deps)
+        run: mise run test:install -- --with-deps
+
+      - name: Start the dev stack
+        run: mise run dev:up
+
+      - name: Wait for Superset to be ready
+        run: |
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPERSET_URL/login/" || true)
+            [ "$code" = "302" ] && { echo "Superset is up"; exit 0; }
+            sleep 2
+          done
+          echo "Superset did not become ready in time" >&2
+          exit 1
+
+      - name: Run the e2e suite
+        run: mise run test
+
+      - name: Run the merge-mode e2e test
+        run: mise run test:merge-mode
+
+      - name: Dump dev stack logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: example/tests/test-results/
+          if-no-files-found: ignore
+
+      - name: Tear down the dev stack
+        if: always()
+        run: mise run dev:down

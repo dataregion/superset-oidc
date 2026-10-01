@@ -26,3 +26,17 @@ superset-oidc-sync-db-oidc-roles = "superset_oidc.cli:migrate"
 
 [tool.setuptools.packages.find]
 where=["src"]
+
+[dependency-groups]
+e2e = [
+    "pytest>=8.0",
+    "pytest-playwright>=0.4",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["example/tests"]
+addopts = "--tracing=retain-on-failure --screenshot=only-on-failure --output=example/tests/test-results"
+markers = [
+    "merge_mode: requires the dev stack running with SUPERSET_OIDC_SYNC_MODE=merge (see `mise run test:merge-mode`)",
+]

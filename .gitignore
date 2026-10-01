@@ -1,7 +1,10 @@
 .venv
 __pycache__
 dist/
-build/
+/build/
 PKG-INFO
 *.egg-info
 .envrc
+.vscode/
+example/tests/test-results/
+example/tests/playwright-report/

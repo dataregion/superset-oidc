@@ -1,25 +1,48 @@
+# Development override: mounts the working tree and the configuration, installs
+# superset-oidc in editable mode and runs Superset under debugpy.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Attach a debugger to localhost:5678.
+
+x-dev-mounts: &dev-mounts
+  volumes:
+    - ..:/app/superset_oidc_dev
+    # Bind-mounted so that editing them only needs a restart. The Dockerfile COPYs the
+    # same files, so without this a config change would require an image rebuild.
+    - ./build/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./build/superset/client_secret.json:/app/pythonpath/client_secret.json:ro
+
 services:
+  # Superset shares this container's network namespace, so its debugger port is published
+  # here rather than on the superset service.
+  keycloak:
+    ports:
+      - 8080:8080
+      - 8088:8088
+      - 5678:5678
+
   superset_db:
-    volumes:
-      - ..:/app/superset_oidc_dev
+    <<: *dev-mounts
+    environment:
+      PYTHONUNBUFFERED: "1"
     command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset db upgrade"
 
   superset_init:
-    volumes:
-      - ..:/app/superset_oidc_dev
+    <<: *dev-mounts
+    environment:
+      PYTHONUNBUFFERED: "1"
     command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset init"
 
   superset:
-    volumes:
-      - ..:/app/superset_oidc_dev
-    ports:
-      - "5678:5678"
+    <<: *dev-mounts
+    environment:
+      PYTHONUNBUFFERED: "1"
+      FLASK_ENV: development
+      SUPERSET_ENV: development
     command: >
       bash -c "
         git config --global --add safe.directory /app/superset_oidc_dev &&
         uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev debugpy &&
-        /app/.venv/bin/python -m debugpy --listen 0.0.0.0:5678           -m flask --app 'superset.app:create_app()' run -p 8088 --host 0.0.0.0 --no-reload
+        /app/.venv/bin/python -m debugpy --listen 0.0.0.0:5678 -m flask --app 'superset.app:create_app()' run -p 8088 --host 0.0.0.0 --no-reload
       "
-    environment:
-      FLASK_ENV: development
-      SUPERSET_ENV: development

@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `mise.toml` exposing the development tasks: `dev:up`, `dev:down`, `dev:reset`,
+  `dev:restart`, `dev:logs`, `dev:logs:oidc`, `dev:shell`, `dev:psql`, `dev:roles`,
+  `dev:kc-logout`, plus `compose` and `build`.
+- A pytest + Playwright end-to-end suite (`example/tests/`) runnable against the
+  development stack via `mise run test`: login (including rejected/invalid credentials),
+  front- and back-channel logout, role synchronization and permission enforcement for all
+  four seeded users, first-login account provisioning, and role changes across a
+  re-login. `mise run test:install` provisions the Playwright browser once.
+- `CUSTOM_AUTH_ROLES_SYNC_MODE` in the example `superset_config.py` is now read from the
+  `SUPERSET_OIDC_SYNC_MODE` environment variable (default unchanged: `overwrite`), and a
+  new `docker-compose.merge-mode.yml` override plus `mise run test:merge-mode` task
+  exercise `merge` mode end-to-end, restoring the default config afterward.
+- `.github/workflows/e2e.yml`: runs the e2e suite (`test` then `test:merge-mode`) against
+  the dev stack on every push and pull request, uploading Playwright traces on failure.
+
+### Changed
+- The `example/` stack is now a one-command development environment. Keycloak is
+  preconfigured through a committed realm import (`superset-dev` realm, client, role
+  mapper, back-channel logout URL and four seeded users), removing the manual client
+  creation and secret copy/paste that previously required a Superset restart.
+- Service startup is now ordered with health checks and completion conditions instead of
+  racing, and Keycloak is aligned on 25.0.6.
+- The Superset container shares Keycloak's network namespace in the example stack, so that
+  `http://localhost:8080` resolves to Keycloak identically from the browser and from
+  Superset. The issuer URL no longer depends on external DNS or a host `/etc/hosts` entry.
+- The development override bind-mounts `superset_config.py` and `client_secret.json`, so
+  configuration changes need a restart rather than an image rebuild.
+
+### Removed
+- Dead `configs:` block in `example/docker-compose.yml`, which referenced files under an
+  empty `example/config/` directory that no service consumed.
+
+### Fixed
+- `WTF_CSRF_EXEMPT_LIST` in the example configuration now names the view functions
+  flask-wtf actually matches (`superset_oidc.sm.*`). The previous `custom.sm.*` entries
+  matched nothing, so back-channel logout calls from the provider were rejected with a
+  missing-CSRF-token error.
+
 ## [1.3.3] - 2026-05-26
 
 ### Fixed

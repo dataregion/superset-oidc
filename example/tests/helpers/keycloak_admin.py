@@ -38,6 +38,23 @@ class KeycloakAdmin:
         resp.raise_for_status()
         return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
+    def get_realm(self) -> dict:
+        resp = self._client.get(
+            f"{self._base_url}/admin/realms/{self._realm}",
+            headers=self._headers(),
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def update_realm(self, **settings: object) -> None:
+        """Applies the given realm settings, leaving the rest of the realm untouched."""
+        resp = self._client.put(
+            f"{self._base_url}/admin/realms/{self._realm}",
+            headers=self._headers(),
+            json=settings,
+        )
+        resp.raise_for_status()
+
     def get_user_id(self, username: str) -> str | None:
         resp = self._client.get(
             f"{self._base_url}/admin/realms/{self._realm}/users",

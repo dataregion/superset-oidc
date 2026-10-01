@@ -45,6 +45,27 @@ def login_as(page, base_url: str) -> Callable[[str, str], None]:
 
 
 @pytest.fixture
+def realm_lifespans(keycloak_admin: KeycloakAdmin) -> Iterator[Callable[..., None]]:
+    """Yields a setter for the realm's token/session lifespans, restored on teardown.
+
+    These are realm-wide, so a test using this fixture cannot run concurrently with any
+    other test in the suite - and a leaked value would break every subsequent login.
+    """
+    tracked = ("accessTokenLifespan", "ssoSessionIdleTimeout", "ssoSessionMaxLifespan")
+    original = {key: keycloak_admin.get_realm()[key] for key in tracked}
+    current = dict(original)
+
+    def _override(**changes: object) -> None:
+        current.update(changes)
+        keycloak_admin.update_realm(**current)
+
+    try:
+        yield _override
+    finally:
+        keycloak_admin.update_realm(**original)
+
+
+@pytest.fixture
 def throwaway_user(keycloak_admin: KeycloakAdmin) -> Iterator[str]:
     """A fresh Keycloak user with no Superset counterpart yet, deleted on teardown.
 

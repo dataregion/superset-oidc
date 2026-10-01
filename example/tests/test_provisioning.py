@@ -1,4 +1,4 @@
-from helpers.ui import logout_via_direct_link
+from helpers.ui import expect_session_active, logout_via_direct_link
 
 
 def test_first_login_provisions_account(page, base_url, login_as, throwaway_user, keycloak_admin):
@@ -9,9 +9,7 @@ def test_first_login_provisions_account(page, base_url, login_as, throwaway_user
 
     login_as(throwaway_user, throwaway_user)
 
-    me = page.request.get(f"{base_url}/api/v1/me/")
-    assert me.status == 200
-    assert me.json()["result"]["username"] == throwaway_user
+    expect_session_active(page, base_url, throwaway_user)
 
     roles = page.request.get(f"{base_url}/api/v1/me/roles/")
     assert set(roles.json()["result"]["roles"].keys()) == {"Alpha", "Gamma"}

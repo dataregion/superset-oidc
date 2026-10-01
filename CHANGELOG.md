@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dev:kc-logout`, plus `compose` and `build`.
 - A pytest + Playwright end-to-end suite (`example/tests/`) runnable against the
   development stack via `mise run test`: login (including rejected/invalid credentials),
-  front- and back-channel logout, role synchronization and permission enforcement for all
-  four seeded users, first-login account provisioning, and role changes across a
-  re-login. `mise run test:install` provisions the Playwright browser once.
+  front- and back-channel logout, logout on Keycloak session expiry, role synchronization
+  and permission enforcement for all four seeded users, first-login account provisioning,
+  and role changes across a re-login. `mise run test:install` provisions the Playwright
+  browser once.
 - `CUSTOM_AUTH_ROLES_SYNC_MODE` in the example `superset_config.py` is now read from the
   `SUPERSET_OIDC_SYNC_MODE` environment variable (default unchanged: `overwrite`), and a
   new `docker-compose.merge-mode.yml` override plus `mise run test:merge-mode` task
@@ -41,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty `example/config/` directory that no service consumed.
 
 ### Fixed
+- `oidc_check_loggedin_or_logout` now clears the OIDC session keys instead of only the
+  Flask-Login session, so a back-channel logout actually ends the session. It previously
+  called `flask_oidc`'s deprecated `OpenIDConnect.logout()`, which returns a redirect and
+  never touches the session, leaving `oidc_auth_token` in place. Because `/login/` is
+  guarded by `require_login`, which only tests for that token, the next navigation to any
+  page rebuilt the session from the cached `oidc_auth_profile` without contacting the
+  provider - a revoked user could keep browsing until their access token fell due for
+  refresh. The REST API still answered 401, which is why this went unnoticed. Same class
+  of bug as the 1.3.2 fix, which covered the `/oidc-logout/` route but not this hook.
 - `WTF_CSRF_EXEMPT_LIST` in the example configuration now names the view functions
   flask-wtf actually matches (`superset_oidc.sm.*`). The previous `custom.sm.*` entries
   matched nothing, so back-channel logout calls from the provider were rejected with a

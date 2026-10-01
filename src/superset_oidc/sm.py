@@ -18,6 +18,19 @@ logger = logging.getLogger(__name__)
 OIDC_SID_KEY = 'oidc-sid'
 
 
+def clear_oidc_session():
+    """Drops every trace of the OIDC login, then the Flask-Login session.
+
+    Leaving the OIDC keys behind is not a cosmetic leak: /login/ is guarded by
+    flask-oidc's require_login, which only tests whether `oidc_auth_token` sits in the
+    session. A surviving token therefore lets the very next navigation rebuild the
+    session from `oidc_auth_profile`, without consulting the provider at all.
+    """
+    for key in ('oidc_auth_token', 'oidc_auth_profile', OIDC_SID_KEY):
+        session.pop(key, None)
+    logout_user()
+
+
 class OIDCSecurityManager(SupersetSecurityManager):
 
     def __init__(self, appbuilder):
@@ -112,10 +125,7 @@ class AuthOIDCView(AuthOIDView):
         return handle_login()
 
     def _do_logout(self):
-        """Clears all OIDC and Flask-Login session state for the current user."""
-        for key in ('oidc_auth_token', 'oidc_auth_profile', OIDC_SID_KEY):
-            session.pop(key, None)
-        logout_user()
+        clear_oidc_session()
 
     @expose('/oidc-logout/', methods=['GET', 'POST'])
     def logout(self):
@@ -256,6 +266,5 @@ def oidc_check_loggedin_or_logout():
     if not oidc.user_loggedin or curr_to_disconnect:
         if current_user.is_authenticated:
             logger.warning(f"User {current_user} is no longer logged in to the OIDC provider. Terminating local session.")
-            oidc.logout()
-            logout_user()
+            clear_oidc_session()
 

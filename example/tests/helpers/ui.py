@@ -4,7 +4,51 @@ view (there is no REST API for editing users/roles on this instance)."""
 
 from __future__ import annotations
 
-from playwright.sync_api import Page
+import re
+import time
+
+from playwright.sync_api import Page, expect
+
+# Flask-AppBuilder's "Your user information" view. Requires a live session to render and
+# shows the username, which makes it a session probe that is actually visible in a headed
+# run - unlike hitting the REST API, where nothing happens on screen. The trailing slash
+# matters: without it the route answers a 308 first.
+USERINFO_PATH = "/users/userinfo/"
+
+# Superset hands an unauthenticated visitor straight to Keycloak's authorization endpoint.
+KEYCLOAK_LOGIN_URL = re.compile(r"/protocol/openid-connect/auth")
+
+
+def expect_session_active(page: Page, base_url: str, username: str | None = None) -> None:
+    page.goto(f"{base_url}{USERINFO_PATH}")
+    expect(page).to_have_url(f"{base_url}{USERINFO_PATH}")
+    if username is not None:
+        expect(page.get_by_text(username).first).to_be_visible()
+
+
+def expect_session_rejected(page: Page, base_url: str) -> None:
+    page.goto(f"{base_url}{USERINFO_PATH}")
+    expect(page).to_have_url(KEYCLOAK_LOGIN_URL)
+
+
+def expect_session_rejected_eventually(
+    page: Page, base_url: str, timeout_s: float = 30
+) -> None:
+    """Re-navigates until the session is gone, for logouts that land asynchronously.
+
+    Each navigation is itself the trigger: a back-channel logout only marks the session
+    for disconnection, and it is dropped on the next incoming request.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        page.goto(f"{base_url}{USERINFO_PATH}")
+        if KEYCLOAK_LOGIN_URL.search(page.url):
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError(
+                f"session still active after {timeout_s}s, still at {page.url}"
+            )
+        time.sleep(1)
 
 
 def login_via_ui(page: Page, base_url: str, username: str, password: str) -> None:

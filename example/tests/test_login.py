@@ -1,10 +1,10 @@
 import pytest
 from data import SEEDED_USERS
+from helpers.ui import expect_session_active, expect_session_rejected
 
 
 def test_unauthenticated_access_is_rejected(page, base_url):
-    response = page.request.get(f"{base_url}/api/v1/me/")
-    assert response.status == 401
+    expect_session_rejected(page, base_url)
 
 
 def test_invalid_credentials_are_rejected(page, base_url):
@@ -16,16 +16,14 @@ def test_invalid_credentials_are_rejected(page, base_url):
 
     # A successful login always ends up back on Superset; a rejected one never leaves Keycloak.
     assert not page.url.startswith(base_url)
-    assert page.request.get(f"{base_url}/api/v1/me/").status == 401
+    expect_session_rejected(page, base_url)
 
 
 @pytest.mark.parametrize("user", SEEDED_USERS, ids=lambda u: u.username)
 def test_login_and_role_sync(page, base_url, login_as, user):
     login_as(user.username, user.password)
 
-    me = page.request.get(f"{base_url}/api/v1/me/")
-    assert me.status == 200
-    assert me.json()["result"]["username"] == user.username
+    expect_session_active(page, base_url, user.username)
 
     # Label-level: proves both the right roles are attached and (for gamma.dev) that a
     # Keycloak role with no Superset counterpart is silently skipped, not errored on.

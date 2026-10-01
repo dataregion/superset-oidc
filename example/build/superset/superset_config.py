@@ -29,10 +29,11 @@ ENABLE_PROXY_FIX = True
 # cookie limit, causing an infinite redirect loop on second login. Storing sessions
 # server-side moves the payload off the cookie; only a signed session ID is kept.
 #
+from cachelib.file import FileSystemCache
+
 SESSION_SERVER_SIDE = True
-SESSION_TYPE = 'filesystem'
-SESSION_FILE_DIR = '/tmp/superset_sessions'
-SESSION_USE_SIGNER = True
+SESSION_TYPE = 'cachelib'
+SESSION_CACHELIB = FileSystemCache(cache_dir='/tmp/superset_sessions')
 SESSION_PERMANENT = False
 
 ###################################################################################
@@ -56,8 +57,6 @@ CUSTOM_AUTH_ROLES_SYNC_MODE = os.environ.get("SUPERSET_OIDC_SYNC_MODE", "overwri
 
 ## flask-oidc configuration, consumed by superset-oidc ##############################
 OIDC_CLIENT_SECRETS =  '/app/pythonpath/client_secret.json'
-OIDC_ID_TOKEN_COOKIE_SECURE = False
-OIDC_OPENID_REALM = "superset-dev"
 OIDC_INTROSPECTION_AUTH_METHOD = "client_secret_post"
 AUTH_USER_REGISTRATION = True
 

@@ -29,10 +29,11 @@ It is strongly recommended to enable server-side sessions via [`flask-session`](
 
 ```python
 # superset_config.py
+from cachelib.file import FileSystemCache
+
 SESSION_SERVER_SIDE = True
-SESSION_TYPE = 'filesystem'
-SESSION_FILE_DIR = '/tmp/superset_sessions'
-SESSION_USE_SIGNER = True
+SESSION_TYPE = 'cachelib'
+SESSION_CACHELIB = FileSystemCache(cache_dir='/tmp/superset_sessions')
 SESSION_PERMANENT = False
 ```
 

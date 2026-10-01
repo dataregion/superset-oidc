@@ -29,18 +29,14 @@ It is strongly recommended to enable server-side sessions via [`flask-session`](
 
 ```python
 # superset_config.py
-from flask_session import Session
-
+SESSION_SERVER_SIDE = True
 SESSION_TYPE = 'filesystem'
 SESSION_FILE_DIR = '/tmp/superset_sessions'
 SESSION_USE_SIGNER = True
 SESSION_PERMANENT = False
-
-def FLASK_APP_MUTATOR(app):
-    import os
-    os.makedirs(app.config.get('SESSION_FILE_DIR', '/tmp/superset_sessions'), exist_ok=True)
-    Session(app)
 ```
+
+Superset instantiates `flask-session` itself when `SESSION_SERVER_SIDE` is set; no `FLASK_APP_MUTATOR` wiring is needed.
 
 ## Limitations
 

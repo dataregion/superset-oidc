@@ -29,6 +29,7 @@ ENABLE_PROXY_FIX = True
 # cookie limit, causing an infinite redirect loop on second login. Storing sessions
 # server-side moves the payload off the cookie; only a signed session ID is kept.
 #
+SESSION_SERVER_SIDE = True
 SESSION_TYPE = 'filesystem'
 SESSION_FILE_DIR = '/tmp/superset_sessions'
 SESSION_USE_SIGNER = True
@@ -43,7 +44,6 @@ import os
 
 from flask import Flask
 from flask_appbuilder.security.manager import AUTH_OID
-from flask_session import Session
 
 from superset_oidc.sm import OIDCSecurityManager, oidc_check_loggedin_or_logout
 AUTH_TYPE = AUTH_OID
@@ -64,17 +64,7 @@ AUTH_USER_REGISTRATION = True
 #####################################
 # ADDITIONAL_MIDDLEWARE = [AuthMiddleware, ]
 
-def _init_server_side_sessions(app: Flask) -> None:
-    """Initialize server-side sessions. Works in conjunction with SESSION_TYPE,
-    SESSION_FILE_DIR, SESSION_USE_SIGNER and SESSION_PERMANENT defined above."""
-    import os
-    os.makedirs(app.config.get('SESSION_FILE_DIR', '/tmp/superset_sessions'), exist_ok=True)
-    Session(app)
-
-
 def FLASK_APP_MUTATOR(app: Flask):
-    _init_server_side_sessions(app)
-
     # Set after Superset has configured logging, which resets levels set at import time.
     logging.getLogger('superset_oidc').setLevel(logging.DEBUG)
 

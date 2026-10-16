@@ -8,4 +8,5 @@ RUN uv pip install --python /app/.venv/bin/python psycopg2-binary psycopg[binary
 
 # Local configuration for the examples
 COPY ./superset_config.py /app/pythonpath/superset_config.py
+COPY ./public_role_permissions.py /app/pythonpath/public_role_permissions.py
 COPY ./client_secret.json /app/pythonpath/client_secret.json

@@ -11,6 +11,7 @@ x-dev-mounts: &dev-mounts
     # Bind-mounted so that editing them only needs a restart. The Dockerfile COPYs the
     # same files, so without this a config change would require an image rebuild.
     - ./build/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./build/superset/public_role_permissions.py:/app/pythonpath/public_role_permissions.py:ro
     - ./build/superset/client_secret.json:/app/pythonpath/client_secret.json:ro
 
 services:
@@ -32,7 +33,7 @@ services:
     <<: *dev-mounts
     environment:
       PYTHONUNBUFFERED: "1"
-    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset init"
+    command: bash -c "git config --global --add safe.directory /app/superset_oidc_dev && uv pip install --python /app/.venv/bin/python -q -e /app/superset_oidc_dev && superset init && python /app/pythonpath/public_role_permissions.py"
 
   superset:
     <<: *dev-mounts

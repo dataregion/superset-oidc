@@ -36,12 +36,21 @@ docker compose down --remove-orphans --volumes
 docker compose up -d --build
 """
 
+[tasks."dev:init"]
+description = "Re-run `superset init` to re-sync roles and permissions with the configuration"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+docker compose run --rm --build superset_init
+"""
+
 [tasks."dev:restart"]
 description = "Restart Superset to pick up code and configuration changes"
 run = """
 #!/usr/bin/env bash
 set -euo pipefail
 docker compose restart superset
+echo "Note: roles and permissions are applied by \\`mise run dev:init\\`, not by a restart."
 """
 
 [tasks."dev:logs"]

@@ -39,6 +39,17 @@ SESSION_PERMANENT = False
 
 Superset instantiates `flask-session` itself when `SESSION_SERVER_SIDE` is set; no `FLASK_APP_MUTATOR` wiring is needed.
 
+### Public (anonymous) dashboards
+
+Superset does not answer a dashboard an anonymous visitor may not see with a 403: it redirects to the login view, which with this module means a full OIDC authorization request. A dashboard meant to be public but misconfigured therefore does not merely stay hidden, it drags the visitor into a Keycloak login.
+
+Exposing one takes two things, both set up in the [example stack](./example/):
+
+- **permissions on the `Public` role**, which Flask-AppBuilder hands to every unauthenticated visitor. Superset 5 can only populate it by cloning another role (`PUBLIC_ROLE_LIKE`), and the narrowest candidate, `Gamma`, grants far more than viewing a dashboard — including `can_userinfo`, whose Flask-AppBuilder view answers an anonymous request with a 500. [public_role_permissions.py](./example/build/superset/public_role_permissions.py) grants the minimal set instead, backported from the built-in `Public` role of Superset 6. It runs right after `superset init`.
+- **`DASHBOARD_RBAC`**, plus the `Public` role attached to the dashboard's own roles. This scopes the exposure to that dashboard: the datasets behind it stay unreachable everywhere else. The alternative — granting `datasource_access` to `Public` — opens those datasets to every anonymous visitor, through any dashboard built on them.
+
+The dashboard must also be published. Both paths are covered by the [end-to-end tests](#end-to-end-tests).
+
 ## Limitations
 
 Here are the limitation and the impacts on the superset instance.
@@ -98,7 +109,9 @@ mise run dev:up
 
 `mise tasks` lists every development task: `dev:reset` to start over from empty databases,
 `dev:logs:oidc` to follow this module's logs only, `dev:roles` to show the synchronized
-roles, `dev:kc-logout` to trigger a back-channel logout. `mise run test` drives the
+roles, `dev:kc-logout` to trigger a back-channel logout. `dev:init` re-runs `superset init`,
+which `dev:restart` does not: role and permission settings are applied there rather than at
+startup, so a change to them needs it. `mise run test` drives the
 [end-to-end tests](#end-to-end-tests) against the running stack. Without
 [mise](https://mise.jdx.dev/), the equivalent of `dev:up` is:
 
@@ -167,8 +180,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 running dev stack: login, logout (front-channel and Keycloak-initiated back-channel),
 role synchronization for all four seeded users (label-level via the API and
 permission-level by checking access to an admin-only page), first-login account
-provisioning, and role changes across a re-login. It replaces the ad hoc curl-based
-checks this stack used to ship with.
+provisioning, role changes across a re-login, and [public dashboards](#public-anonymous-dashboards)
+— that an anonymous visitor is bounced into the OIDC flow on a published dashboard that
+is not shared with them, and reaches it without any login once the `Public` role is
+attached to it. It replaces the ad hoc curl-based checks this stack used to ship with.
 
 ```bash
 mise run dev:up

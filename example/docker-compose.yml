@@ -80,7 +80,7 @@ services:
   # superset - initialization of roles and permission
   superset_init:
     build: ./build/superset
-    command: superset init
+    command: bash -c "superset init && python /app/pythonpath/public_role_permissions.py"
     depends_on:
       superset_db:
         condition: service_completed_successfully

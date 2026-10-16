@@ -24,6 +24,27 @@ MAPBOX_API_KEY = ''
 ENABLE_PROXY_FIX = True
 
 ###################################################################################
+# Public (anonymous) dashboards
+#
+# The `Public` role Flask-AppBuilder hands to unauthenticated visitors is populated by
+# public_role_permissions.py, which `superset init` runs. PUBLIC_ROLE_LIKE is deliberately
+# left unset: Superset 5 can only clone an existing role onto `Public`, and the narrowest
+# candidate, `Gamma`, grants far more than viewing a dashboard.
+#
+# What that script grants is view-level only; reaching a dashboard's data still needs
+# either `datasource_access` on its datasets - which opens them to every anonymous
+# visitor, through any dashboard built on them - or DASHBOARD_RBAC below.
+#
+# With DASHBOARD_RBAC, attaching a role to a dashboard scopes access to that dashboard:
+# its datasets stay unreachable elsewhere (Explore, the chart data API out of context).
+# Attaching `Public` is therefore how a single dashboard is exposed anonymously. Inert
+# until a dashboard actually carries roles, in which case it supersedes dataset-based
+# access for that dashboard.
+FEATURE_FLAGS = {
+    "DASHBOARD_RBAC": True,
+}
+
+###################################################################################
 # Server-side sessions
 # OIDC tokens (id_token + access_token + refresh_token) easily exceed the 4096-byte
 # cookie limit, causing an infinite redirect loop on second login. Storing sessions

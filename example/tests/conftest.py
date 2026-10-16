@@ -5,6 +5,7 @@ from typing import Callable
 
 import pytest
 from helpers.keycloak_admin import KeycloakAdmin
+from helpers.superset_api import SupersetApi
 from helpers.ui import login_via_ui
 
 
@@ -42,6 +43,22 @@ def login_as(page, base_url: str) -> Callable[[str, str], None]:
         login_via_ui(page, base_url, username, password)
 
     return _login
+
+
+@pytest.fixture
+def admin_api(browser, browser_context_args, base_url: str) -> Iterator[SupersetApi]:
+    """Superset's REST API as admin.dev, from a browser context of its own.
+
+    Separate from the `page` fixture so that a test can hold an admin session and an
+    anonymous one at the same time - and so that Playwright's trace, which pytest-
+    playwright only wires onto `page`, stays on the visitor under test.
+    """
+    context = browser.new_context(**browser_context_args)
+    try:
+        login_via_ui(context.new_page(), base_url, "admin.dev", "admin.dev")
+        yield SupersetApi(context.request, base_url)
+    finally:
+        context.close()
 
 
 @pytest.fixture
